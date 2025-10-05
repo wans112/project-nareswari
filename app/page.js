@@ -12,9 +12,12 @@ export default function Home() {
       label: "Layanan",
       sublink: [
         { href: "/pernikahan", label: "Pernikahan" },
-        { href: "/dekorasi", label: "Dekorasi & Akad" },
+        { href: "/dekorasi", label: "Akad" },
         { href: "/prewedding", label: "Prewedding" },
         { href: "/khitan", label: "Khitan/Rasulan" },
+        { href: "/wedding", label: "Wedding" },
+        { href: "/makeup", label: "Makeup & Hairstyling" },
+        { href: "/sewa-busana", label: "Sewa Kebaya & Busana" },
       ],
     },
     { href: "#reviews", label: "Ulasan" },

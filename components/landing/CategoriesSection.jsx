@@ -78,10 +78,16 @@ export default function CategoriesSection() {
 
         {/* Desktop / Tablet: 3-column grid starting at sm */}
         <div className="mt-6 hidden sm:block">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {categories.map((c) => (
-              <Link key={c.id} href={`/${c.id}`} className="block w-full h-full no-underline">
-                <Card className="h-full p-4 border-2 hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {categories.map((c, i) => {
+              // create small variations per card
+              const delays = ["0s", "0.6s", "0.3s", "0.9s", "0.45s", "0.15s", "0.75s"];
+              const durations = ["4s", "4.5s", "3.8s", "5s", "4.2s", "3.6s", "4.8s"];
+              const style = { animationDelay: delays[i % delays.length], animationDuration: durations[i % durations.length] };
+
+              return (
+                <Link key={c.id} href={`/${c.id}`} className="block w-full h-full no-underline">
+                <Card style={style} className="h-full p-4 border-2 hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out card-float">
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold">{c.label}</CardTitle>
                     <CardDescription>{/* optional small label */}</CardDescription>
@@ -91,7 +97,8 @@ export default function CategoriesSection() {
                   </CardContent>
                 </Card>
               </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

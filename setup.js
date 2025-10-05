@@ -176,10 +176,12 @@ try {
 	const categories = [
 		{ nama: 'Pernikahan', sub: 'Rumah' },
 		{ nama: 'Pernikahan', sub: 'Gedung' },
-		{ nama: 'Dekorasi & Akad', sub: null },
+		{ nama: 'Akad', sub: null },
 		{ nama: 'Prewedding', sub: null },
 		{ nama: 'Wedding', sub: null },
 		{ nama: 'Khitan/Rasul', sub: null },
+		{ nama: 'Makeup & Hairstyling', sub: null },
+		{ nama: 'Sewa Kebaya & Busana', sub: null },
 	];
 
 	const insert = db.prepare('INSERT OR IGNORE INTO kategori_produk (nama_kategori, sub_kategori) VALUES (?, ?)');

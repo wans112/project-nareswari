@@ -36,8 +36,6 @@ export default function AboutSection() {
                 </div>
               </div>
 
-              <p className="text-sm text-muted-foreground mb-4">Di Nareswari Galeri, Anda bukan sekadar klien, melainkan inspirasi. Mari kita wujudkan sebuah perayaan yang tak hanya indah di mata, tetapi juga hangat di hati.</p>
-
             <div className="flex gap-3">
               <Button asChild className="hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
                 <a href="#packages">Lihat Layanan</a>

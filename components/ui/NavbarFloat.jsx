@@ -29,7 +29,7 @@ export default function NavbarFloat({ brand, links, cta, initialOpen = false }) 
 	}
 
 	return (
-		<div className="fixed inset-x-0 top-6 flex justify-center z-50 pointer-events-none">
+		<div className="fixed inset-x-0 top-2 flex justify-center z-50 pointer-events-none">
 			<nav className="pointer-events-auto w-full max-w-5xl px-4">
 				<div className="bg-black/45 backdrop-blur-md border border-white/10 rounded-xl shadow-lg px-4 py-2 flex items-center justify-between">
 					<div className="flex items-center gap-4">

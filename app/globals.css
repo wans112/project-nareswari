@@ -157,3 +157,22 @@
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
 }
+
+/* Floating card animation for desktop only (lg+) */
+@keyframes float {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-8px); }
+}
+
+@media (min-width: 1024px) {
+  .card-float {
+    animation: float 4s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  /* Slightly emphasize lift on hover for desktop */
+  .card-float:hover {
+    transform: translateY(-10px) scale(1.02);
+    transition: transform 200ms ease-in-out;
+  }
+}

@@ -5,6 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription }
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import Image from 'next/image'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 
 export default function DetailProduk({ id, product, onOrder }) {
   const [prod, setProd] = useState(product || null);
@@ -13,6 +15,7 @@ export default function DetailProduk({ id, product, onOrder }) {
   const [error, setError] = useState(null);
   const [activeIdx, setActiveIdx] = useState(0);
   const [allBenefits, setAllBenefits] = useState([]);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     if (!prod && id) {
@@ -96,11 +99,15 @@ export default function DetailProduk({ id, product, onOrder }) {
             {/* Main Image */}
             <div className="w-full lg:w-80 h-80 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-neutral-200 dark:ring-neutral-800">
               {media && media.length > 0 ? (
-                <img 
-                  src={media[activeIdx].url} 
-                  alt={prod.nama_paket} 
-                  className="object-cover w-full h-full transition-transform hover:scale-105" 
-                />
+                <div className="w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
+                  <Image
+                    src={media[activeIdx].url}
+                    alt={prod.nama_paket}
+                    width={800}
+                    height={800}
+                    className="object-cover w-full h-full transition-transform hover:scale-105"
+                  />
+                </div>
               ) : (
                 <div className="text-center text-gray-500 dark:text-gray-400">
                   <div className="w-16 h-16 mx-auto mb-2 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
@@ -195,14 +202,14 @@ export default function DetailProduk({ id, product, onOrder }) {
                   {media.map((m, idx) => (
                     <button 
                       key={m.id || m.media_path || idx} 
-                      onClick={() => setActiveIdx(idx)} 
+                      onClick={() => { setActiveIdx(idx);}} 
                       className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                         idx === activeIdx 
                           ? 'ring-2 ring-neutral-900 border-neutral-900 dark:ring-neutral-100 dark:border-neutral-100 shadow-md' 
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 opacity-80 hover:opacity-100'
                       }`}
                     >
-                      <img src={m.url} alt={`thumb-${idx}`} className="object-cover w-full h-full" />
+                      <Image src={m.url} alt={`thumb-${idx}`} width={160} height={96} className="object-cover w-full h-full" />
                     </button>
                   ))}
                 </div>
@@ -212,13 +219,7 @@ export default function DetailProduk({ id, product, onOrder }) {
         </CardContent>
         
         <CardFooter className="px-6 pt-4 bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-              Paket Wedding Premium
-            </div>
+          <div className="flex items-center justify-end w-full">
             <Button 
               size="lg" 
               onClick={() => onOrder ? onOrder(prod) : alert('Order: ' + prod.nama_paket)}
@@ -232,6 +233,18 @@ export default function DetailProduk({ id, product, onOrder }) {
           </div>
         </CardFooter>
       </Card>
+
+        {/* Lightbox dialog */}
+        <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+          <DialogContent className="max-w-6xl p-0">
+            <DialogTitle className="sr-only">{prod.nama_paket} - Preview Gambar</DialogTitle>
+            <div className="relative w-full h-[70vh] bg-black">
+              {media && media.length > 0 && (
+                <Image src={media[activeIdx].url} alt={prod.nama_paket} fill className="object-contain" />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }
