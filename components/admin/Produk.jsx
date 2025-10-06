@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Table, Button, Modal, Form, Input, InputNumber, Select, Space, Tag, message, Upload, List, Image, Popconfirm } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { Table, Button, Form, Space, Tag, message } from 'antd';
+import ProdukForm from './produk/ProdukForm';
 
 export default function ProdukAdmin() {
   const [rows, setRows] = useState([]);
@@ -10,41 +10,28 @@ export default function ProdukAdmin() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form] = Form.useForm();
-  const [meta, setMeta] = useState({ categories: [], benefits: [] });
+  const [meta, setMeta] = useState({ categories: [], benefits: [], benefitCategories: [] });
   // benefit UI: simple select populated from meta.benefits
   
   const [modalMedia, setModalMedia] = useState([]); // media attached in product modal (objects {id, url, media_path})
-  const [benefitOpen, setBenefitOpen] = useState(false);
-  const [benefitName, setBenefitName] = useState('');
-  const [benefitQuery, setBenefitQuery] = useState('');
-  const [benefitKategori, setBenefitKategori] = useState('');
-  const [addingBenefit, setAddingBenefit] = useState(false);
-  const [benefitCategories, setBenefitCategories] = useState([]);
-  const [editingBenefit, setEditingBenefit] = useState(null);
-  const [editBenefitName, setEditBenefitName] = useState('');
-  const [editBenefitKategori, setEditBenefitKategori] = useState('');
-  const [editSaving, setEditSaving] = useState(false);
 
-  const benefitOptions = useMemo(() => meta.benefits.map(b => ({ label: b.benefit, value: b.id })), [meta]);
-  const categoryOptions = useMemo(() => meta.categories.map(c => ({ label: `${c.nama_kategori}${c.sub_kategori ? ` — ${c.sub_kategori}` : ''}` , value: c.id })), [meta]);
-  const filteredBenefitOptions = benefitOptions;
-  const benefitKategoriOptions = useMemo(() => {
-    const fromApi = (benefitCategories || [])
-      .map(k => ({ label: k.nama_kategori, value: k.nama_kategori }))
-      .filter(opt => !!opt.value);
-    if (fromApi.length > 0) return fromApi;
-    // fallback to dedupe from meta.benefits if categories API empty
-    const s = new Set();
-    (meta.benefits || []).forEach(b => {
-      if (b && (b.nama_kategori || b.kategori)) s.add(b.nama_kategori || b.kategori);
-    });
-    return Array.from(s).filter(Boolean).map(k => ({ label: k, value: k }));
-  }, [benefitCategories, meta]);
+  const benefitOptions = useMemo(
+    () => meta.benefits.map(b => ({ label: b.benefit, value: b.id })),
+    [meta]
+  );
+  const categoryOptions = useMemo(
+    () => meta.categories.map(c => ({ label: `${c.nama_kategori}${c.sub_kategori ? ` — ${c.sub_kategori}` : ''}`, value: c.id })),
+    [meta]
+  );
+  const benefitCategoryOptions = useMemo(
+    () => (meta.benefitCategories || []).map(k => ({ label: k.nama_kategori, value: k.id })),
+    [meta]
+  );
 
   async function fetchMeta() {
     try {
       // fetch categories (produk), full benefits (with kategori), and kategori_benefit list
-      const [prodRes, benRes, catBenRes] = await Promise.all([
+      const [prodRes, benRes, benCatRes] = await Promise.all([
         fetch('/api/produk?meta=1', { cache: 'no-store' }),
         fetch('/api/benefit', { cache: 'no-store' }),
         fetch('/api/benefit/kategori', { cache: 'no-store' })
@@ -52,13 +39,16 @@ export default function ProdukAdmin() {
       const prodMeta = await prodRes.json();
       let benefits = [];
       try { benefits = await benRes.json(); } catch (_) { benefits = prodMeta?.benefits || []; }
+      let benefitCategories = [];
       try {
-        const catRows = await catBenRes.json();
-        setBenefitCategories(Array.isArray(catRows) ? catRows : []);
-      } catch (_) { setBenefitCategories([]); }
+        benefitCategories = benCatRes.ok ? await benCatRes.json() : [];
+      } catch (_) {
+        benefitCategories = [];
+      }
       setMeta({
         categories: prodMeta?.categories || [],
-        benefits: Array.isArray(benefits) ? benefits : (prodMeta?.benefits || [])
+        benefits: Array.isArray(benefits) ? benefits : (prodMeta?.benefits || []),
+        benefitCategories: Array.isArray(benefitCategories) ? benefitCategories : []
       });
     } catch (e) {
       console.error(e);
@@ -83,8 +73,8 @@ export default function ProdukAdmin() {
   function openCreate() {
     setEditing(null);
     form.resetFields();
-  setModalMedia([]);
-  setOpen(true);
+    setModalMedia([]);
+    setOpen(true);
   }
 
   // benefit creation removed; select is read-only list from meta
@@ -111,13 +101,13 @@ export default function ProdukAdmin() {
       try {
         const res = await fetch(`/api/media?produk_id=${record.id}`);
         const j = await res.json();
-  setModalMedia(j || []);
+        setModalMedia(j || []);
       } catch (e) { console.error(e); }
     })();
     setOpen(true);
   }
 
-  async function handleOk() {
+  async function handleSubmit() {
     try {
       const vals = await form.validateFields();
       // if there are temporary files in modalMedia (temp === true), upload them first
@@ -149,6 +139,12 @@ export default function ProdukAdmin() {
         await fetch('/api/produk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       }
       setOpen(false);
+      modalMedia.forEach(item => {
+        if (item?.temp && item.preview) {
+          URL.revokeObjectURL(item.preview);
+        }
+      });
+      setModalMedia([]);
       await fetchRows();
       await fetchMeta();
     } catch (e) {
@@ -165,7 +161,7 @@ export default function ProdukAdmin() {
   }
 
   // upload file directly into product modal (temporary association with produk_id=null)
-  async function handleModalUpload({ file }) {
+  async function handleModalUpload(file) {
     // validate file is an image
     function isImage(f) {
       if (!f) return false;
@@ -176,46 +172,131 @@ export default function ProdukAdmin() {
     }
 
     if (!isImage(file)) {
-      return message.error('Hanya file gambar yang diperbolehkan');
+      message.error('Hanya file gambar yang diperbolehkan');
+      throw new Error('Invalid image file');
     }
 
     // make upload temporary: store File and a local preview, upload later when user clicks Save
     try {
       const preview = URL.createObjectURL(file);
-      const tmp = { temp: true, file, preview, media_path: file.name };
+      // create a unique tempId so we can remove this specific temp item later
+      const tempId = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+      const tmp = { temp: true, tempId, file, preview, media_path: file.name };
       setModalMedia(prev => [...prev, tmp]);
+      return tmp;
     } catch (e) {
       message.error('Gagal menyiapkan file');
+      throw e;
     }
   }
 
   async function handleDeleteMedia(id) {
-    try {
-      await fetch(`/api/media?id=${id}`, { method: 'DELETE' });
-      // media modal removed; no local refresh here
-    } catch (e) { message.error('Gagal menghapus media'); }
+    const res = await fetch(`/api/media?id=${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      throw new Error('Gagal menghapus media');
+    }
   }
 
-  async function handleAddBenefit() {
-    if (!benefitName || !benefitName.trim()) return message.error('Nama benefit wajib diisi');
-    setAddingBenefit(true);
+  async function handleRemoveMedia(item) {
+    if (!item) return;
+    if (item.temp) {
+      setModalMedia(prev => prev.filter(x => x.tempId !== item.tempId));
+      if (item.preview) {
+        URL.revokeObjectURL(item.preview);
+      }
+      message.success('Gambar dihapus');
+      return;
+    }
+
     try {
-      const payload = { benefit: benefitName.trim() };
-      if (benefitKategori && benefitKategori.trim()) payload.nama_kategori = benefitKategori.trim();
-      const res = await fetch('/api/benefit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      await handleDeleteMedia(item.id);
+      setModalMedia(prev => prev.filter(x => x.id !== item.id));
+      message.success('Gambar dihapus');
+    } catch (err) {
+      message.error(err?.message || 'Gagal menghapus gambar');
+    }
+  }
+
+  async function handleCreateCategory({ nama_kategori, sub_kategori }) {
+    try {
+      const res = await fetch('/api/kategori-produk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nama_kategori, sub_kategori })
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || 'Gagal menambah kategori');
+      }
+      const created = await res.json();
+      setMeta(prev => {
+        const exists = prev.categories.some(c => c.id === created.id);
+        const categories = exists ? prev.categories : [...prev.categories, created];
+        return { ...prev, categories };
+      });
+      message.success('Kategori ditambahkan');
+      return created;
+    } catch (err) {
+      message.error(err?.message || 'Gagal menambah kategori');
+      throw err;
+    }
+  }
+
+  async function handleCreateBenefitCategory(nama_kategori) {
+    try {
+      const res = await fetch('/api/benefit/kategori', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nama_kategori })
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || 'Gagal menambah kategori benefit');
+      }
+      const created = await res.json();
+      setMeta(prev => {
+        const exists = prev.benefitCategories.some(k => k.id === created.id);
+        const benefitCategories = exists ? prev.benefitCategories : [...prev.benefitCategories, created];
+        return { ...prev, benefitCategories };
+      });
+      message.success('Kategori benefit ditambahkan');
+      return created;
+    } catch (err) {
+      message.error(err?.message || 'Gagal menambah kategori benefit');
+      throw err;
+    }
+  }
+
+  async function handleCreateBenefit({ benefit, kategori_benefit_id, nama_kategori }) {
+    try {
+      const res = await fetch('/api/benefit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ benefit, kategori_benefit_id, nama_kategori })
+      });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.error || 'Gagal menambah benefit');
       }
-      await res.json();
+      const created = await res.json();
+      setMeta(prev => {
+        const benefitExists = prev.benefits.some(b => b.id === created.id);
+        const benefits = benefitExists ? prev.benefits : [...prev.benefits, created];
+        const hasKategori = created.nama_kategori;
+        let benefitCategories = prev.benefitCategories;
+        if (hasKategori) {
+          const kategoriExists = prev.benefitCategories.some(k => k.nama_kategori === created.nama_kategori || k.id === created.kategori_benefit_id);
+          if (!kategoriExists) {
+            benefitCategories = [...prev.benefitCategories, { id: created.kategori_benefit_id, nama_kategori: created.nama_kategori }];
+          }
+        }
+        return { ...prev, benefits, benefitCategories };
+      });
       message.success('Benefit ditambahkan');
-      setBenefitName('');
-      setBenefitKategori('');
-      await fetchMeta();
-    } catch (e) {
-      message.error(e?.message || 'Gagal menambah benefit');
-    } finally {
-      setAddingBenefit(false);
+      return created;
+    } catch (err) {
+      message.error(err?.message || 'Gagal menambah benefit');
+      throw err;
     }
   }
 
@@ -238,190 +319,26 @@ export default function ProdukAdmin() {
     <div>
       <Space style={{ marginBottom: 16 }}>
         <Button type="primary" onClick={openCreate}>Tambah Produk</Button>
-        <Button onClick={fetchRows}>Refresh</Button>
-        <Button onClick={() => { fetchMeta(); setBenefitOpen(true); }}>Kelola Benefit</Button>
       </Space>
       <Table rowKey="id" columns={columns} dataSource={rows} loading={loading} />
 
-      <Modal title={editing ? 'Edit Produk' : 'Tambah Produk'} open={open} onOk={handleOk} onCancel={() => setOpen(false)} okText="Simpan" cancelText="Batal">
-        <Form form={form} layout="vertical">
-          <Form.Item name="nama_paket" label="Nama Paket" rules={[{ required: true, message: 'Nama paket wajib diisi' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="harga" label="Harga">
-            <InputNumber
-              style={{ width: '100%' }}
-              formatter={value => value ? `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
-              parser={value => String(value).replace(/\D+/g, '')}
-            />
-          </Form.Item>
-          <Form.Item name="kategori_produk_id" label="Kategori" rules={[{ required: true, message: 'Pilih kategori' }]}>
-            <Select showSearch options={categoryOptions} placeholder="Pilih kategori" />
-          </Form.Item>
-          <Form.Item name="benefits" label="Benefits" tooltip="Pilih banyak benefit">
-            <Select
-              mode="multiple"
-              options={benefitOptions}
-              placeholder="Pilih benefits"
-            />
-          </Form.Item>
+      <ProdukForm
+        open={open}
+        editing={editing}
+        form={form}
+        onCancel={() => setOpen(false)}
+        onSubmit={handleSubmit}
+        categoryOptions={categoryOptions}
+        benefitOptions={benefitOptions}
+        benefitCategoryOptions={benefitCategoryOptions}
+        modalMedia={modalMedia}
+        onUpload={handleModalUpload}
+        onRemoveMedia={handleRemoveMedia}
+        onCreateCategory={handleCreateCategory}
+        onCreateBenefitCategory={handleCreateBenefitCategory}
+        onCreateBenefit={handleCreateBenefit}
+      />
 
-          <div style={{ marginTop: 12 }}>
-            <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontWeight: 600 }}>Gambar Produk</div>
-              <Upload
-                multiple
-                accept="image/*"
-                customRequest={({ file, onSuccess, onError }) => {
-                  handleModalUpload({ file }).then(() => onSuccess && onSuccess('ok')).catch(onError);
-                }}
-                showUploadList={false}
-              >
-                <Button icon={<UploadOutlined />}>Upload Image</Button>
-              </Upload>
-            </div>
-            <List
-              dataSource={modalMedia}
-              bordered
-              renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button key="remove" danger size="small" onClick={async () => {
-                      // delete media row + file on server, then remove from modal list
-                      try {
-                        await handleDeleteMedia(item.id);
-                        setModalMedia(prev => prev.filter(x => x.id !== item.id));
-                        message.success('Gambar dihapus');
-                      } catch (err) {
-                        message.error('Gagal menghapus gambar');
-                      }
-                    }}>Hapus</Button>
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={<Image width={56} src={item.preview || item.url} />}
-                    title={item.media_path || item.url}
-                  />
-                </List.Item>
-              )}
-            />
-          </div>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="Kelola Benefit"
-        open={benefitOpen}
-        onCancel={() => setBenefitOpen(false)}
-        footer={[<Button key="close" onClick={() => setBenefitOpen(false)}>Tutup</Button>]}
-        width={900}
-        styles={{ body: { maxHeight: '60vh', overflowY: 'auto', paddingBottom: 0 } }}
-      >
-        <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Input
-            placeholder="Ketik untuk cari atau tekan Enter untuk tambah"
-            value={benefitQuery}
-            onChange={e => { setBenefitQuery(e.target.value); setBenefitName(e.target.value); }}
-            onPressEnter={() => { if (benefitName && benefitName.trim()) handleAddBenefit(); }}
-            allowClear
-          />
-          <Select
-            placeholder="Kategori"
-            style={{ minWidth: 200 }}
-            mode="tags"
-            options={benefitKategoriOptions}
-            value={benefitKategori ? [benefitKategori] : undefined}
-            onChange={(val) => {
-              // mode=tags returns an array; we only keep the first value as the kategori string
-              if (Array.isArray(val) && val.length > 0) {
-                setBenefitKategori(val[val.length - 1]); // take the last added tag
-              } else {
-                setBenefitKategori('');
-              }
-            }}
-            maxTagCount={1}
-          />
-          <Button type="primary" loading={addingBenefit} onClick={handleAddBenefit}>Tambah</Button>
-        </div>
-        <List
-          dataSource={(meta.benefits || []).filter(b => {
-            if (!benefitQuery || !benefitQuery.trim()) return true;
-            const q = benefitQuery.trim().toLowerCase();
-            const name = (b && (b.benefit || String(b))) ? String(b.benefit || b).toLowerCase() : '';
-            return name.includes(q);
-          })}
-          bordered
-          renderItem={(item) => (
-            <List.Item
-              actions={[
-                <Button key="edit" onClick={() => {
-                  setEditingBenefit(item);
-                  setEditBenefitName(item.benefit || '');
-                  setEditBenefitKategori(item.nama_kategori || item.kategori || '');
-                }}>Edit</Button>,
-                <Popconfirm
-                  title={`Hapus benefit "${item.benefit}" ?`}
-                  onConfirm={async () => {
-                    try {
-                      if (!item.id) return message.error('Tidak ada id benefit');
-                      const res = await fetch(`/api/benefit?id=${item.id}`, { method: 'DELETE' });
-                      if (!res.ok) throw new Error('Gagal menghapus');
-                      message.success('Benefit dihapus');
-                      await fetchMeta();
-                    } catch (e) {
-                      message.error(e?.message || 'Gagal menghapus benefit');
-                    }
-                  }}
-                  okText="Hapus"
-                  cancelText="Batal"
-                >
-                  <Button key="del" danger>Hapus</Button>
-                </Popconfirm>
-              ]}
-            >
-              <List.Item.Meta
-                title={item.benefit || item}
-                description={item.nama_kategori || item.kategori || null}
-              />
-              { (item.nama_kategori || item.kategori) ? <Tag>{item.nama_kategori || item.kategori}</Tag> : null }
-            </List.Item>
-          )}
-        />
-
-        <Modal
-          title={editingBenefit ? 'Edit Benefit' : 'Edit Benefit'}
-          open={!!editingBenefit}
-          onCancel={() => setEditingBenefit(null)}
-          onOk={async () => {
-            if (!editingBenefit) return;
-            if (!editBenefitName || !editBenefitName.trim()) return message.error('Nama benefit wajib diisi');
-            setEditSaving(true);
-            try {
-              const payload = { benefit: editBenefitName.trim() };
-              if (editBenefitKategori && editBenefitKategori.trim()) payload.nama_kategori = editBenefitKategori.trim();
-              const res = await fetch(`/api/benefit?id=${editingBenefit.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-              if (!res.ok) {
-                const j = await res.json().catch(() => ({}));
-                throw new Error(j?.error || 'Gagal menyimpan perubahan');
-              }
-              message.success('Benefit diperbarui');
-              setEditingBenefit(null);
-              await fetchMeta();
-            } catch (e) {
-              message.error(e?.message || 'Gagal menyimpan');
-            } finally {
-              setEditSaving(false);
-            }
-          }}
-          okText="Simpan"
-          cancelText="Batal"
-        >
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Input value={editBenefitName} onChange={e => setEditBenefitName(e.target.value)} placeholder="Nama benefit" />
-            <Select style={{ minWidth: 200 }} mode="tags" options={benefitKategoriOptions} value={editBenefitKategori ? [editBenefitKategori] : undefined} onChange={(val) => { if (Array.isArray(val) && val.length) setEditBenefitKategori(val[val.length - 1]); else setEditBenefitKategori(''); }} maxTagCount={1} />
-          </div>
-        </Modal>
-      </Modal>
     </div>
   );
 }

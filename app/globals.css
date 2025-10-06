@@ -166,13 +166,25 @@
 
 @media (min-width: 1024px) {
   .card-float {
-    animation: float 4s ease-in-out infinite alternate;
+    /* faster, snappier float */
+    animation: float 2.5s ease-in-out infinite alternate;
     will-change: transform;
   }
 
-  /* Slightly emphasize lift on hover for desktop */
+  /* Slightly emphasize lift on hover for desktop (faster response) */
   .card-float:hover {
     transform: translateY(-10px) scale(1.02);
-    transition: transform 200ms ease-in-out;
+    transition: transform 150ms ease-in-out;
+  }
+
+  /* Honor user preference for reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .card-float {
+      animation: none !important;
+      transition: none !important;
+    }
+    .card-float:hover {
+      transform: none !important;
+    }
   }
 }

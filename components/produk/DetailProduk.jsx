@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import Image from 'next/image'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+// lightbox will use a custom overlay instead of Dialog
 
 export default function DetailProduk({ id, product, onOrder }) {
   const [prod, setProd] = useState(product || null);
@@ -96,26 +96,47 @@ export default function DetailProduk({ id, product, onOrder }) {
       <Card className="max-w-4xl mx-auto shadow-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black">
         <CardHeader className="pb-6">
           <div className="flex flex-col lg:flex-row items-start gap-6">
-            {/* Main Image */}
-            <div className="w-full lg:w-80 h-80 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-neutral-200 dark:ring-neutral-800">
-              {media && media.length > 0 ? (
-                <div className="w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
-                  <Image
-                    src={media[activeIdx].url}
-                    alt={prod.nama_paket}
-                    width={800}
-                    height={800}
-                    className="object-cover w-full h-full transition-transform hover:scale-105"
-                  />
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <div className="w-16 h-16 mx-auto mb-2 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
-                    </svg>
+            {/* Main Image (with thumbnails below) */}
+            <div className="w-full lg:w-80">
+              <div className="h-80 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-neutral-200 dark:ring-neutral-800">
+                {media && media.length > 0 ? (
+                  <div className="w-full h-full cursor-pointer" onClick={() => setLightboxOpen(true)}>
+                    <Image
+                      src={media[activeIdx].url}
+                      alt={prod.nama_paket}
+                      width={800}
+                      height={800}
+                      className="object-cover w-full h-full transition-transform hover:scale-105"
+                    />
                   </div>
-                  <p className="text-sm">No image</p>
+                ) : (
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <div className="w-16 h-16 mx-auto mb-2 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                      </svg>
+                    </div>
+                    <p className="text-sm">No image</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Thumbnails below main image (moved from CardContent) */}
+              {media && media.length > 1 && (
+                <div className="mt-3 flex gap-3 overflow-x-auto p-2">
+                  {media.map((m, idx) => (
+                    <button
+                      key={m.id || m.media_path || idx}
+                      onClick={() => { setActiveIdx(idx); }}
+                      className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                        idx === activeIdx
+                          ? 'ring-1 ring-neutral-900 border-neutral-900 dark:ring-neutral-100 dark:border-neutral-100 shadow-md'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 opacity-80 hover:opacity-100'
+                      }`}
+                    >
+                      <Image src={m.url} alt={`thumb-${idx}`} width={160} height={96} className="object-cover w-full h-full" />
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -190,31 +211,6 @@ export default function DetailProduk({ id, product, onOrder }) {
                 </div>
               )}
             </div>
-
-            {/* Image Gallery */}
-            {media && media.length > 1 && (
-              <div>
-                <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <div className="w-2 h-6 bg-neutral-900 dark:bg-neutral-100 rounded-full"></div>
-                  Gallery
-                </h4>
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {media.map((m, idx) => (
-                    <button 
-                      key={m.id || m.media_path || idx} 
-                      onClick={() => { setActiveIdx(idx);}} 
-                      className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                        idx === activeIdx 
-                          ? 'ring-2 ring-neutral-900 border-neutral-900 dark:ring-neutral-100 dark:border-neutral-100 shadow-md' 
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 opacity-80 hover:opacity-100'
-                      }`}
-                    >
-                      <Image src={m.url} alt={`thumb-${idx}`} width={160} height={96} className="object-cover w-full h-full" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </CardContent>
         
@@ -234,17 +230,68 @@ export default function DetailProduk({ id, product, onOrder }) {
         </CardFooter>
       </Card>
 
-        {/* Lightbox dialog */}
-        <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-          <DialogContent className="max-w-6xl p-0">
-            <DialogTitle className="sr-only">{prod.nama_paket} - Preview Gambar</DialogTitle>
-            <div className="relative w-full h-[70vh] bg-black">
-              {media && media.length > 0 && (
-                <Image src={media[activeIdx].url} alt={prod.nama_paket} fill className="object-contain" />
+        {/* Custom full-screen overlay preview (no Dialog) */}
+        {lightboxOpen && (
+          <div
+            role="dialog"
+            aria-label={`${prod.nama_paket} - Preview Gambar`}
+            tabIndex={-1}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75"
+            onClick={() => setLightboxOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setLightboxOpen(false);
+              if (e.key === 'ArrowRight') setActiveIdx(idx => Math.min((media.length || 1) - 1, idx + 1));
+              if (e.key === 'ArrowLeft') setActiveIdx(idx => Math.max(0, idx - 1));
+            }}
+          >
+            <div className="relative max-w-6xl w-full max-h-[90vh] p-4" onClick={(e) => e.stopPropagation()}>
+              <button
+                aria-label="Close preview"
+                className="absolute top-4 right-4 z-50 text-white bg-black/50 rounded-full p-3 w-10 h-10 flex items-center justify-center text-lg"
+                onClick={() => setLightboxOpen(false)}
+              >
+                ✕
+              </button>
+
+              <div className="relative w-full h-[80vh] bg-black overflow-hidden rounded-lg">
+                {media && media.length > 0 && (
+                  <Image src={media[activeIdx].url} alt={prod.nama_paket} fill className="object-contain" />
+                )}
+              </div>
+
+              {/* Thumbnails inside overlay */}
+              {media && media.length > 1 && (
+                <div className="mt-4 flex gap-2 overflow-x-auto py-2" onClick={(e) => e.stopPropagation()}>
+                  {media.map((m, i) => (
+                    <button key={m.id || m.media_path || i} onClick={() => setActiveIdx(i)} className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all ${i === activeIdx ? 'ring-1 ring-white border-white shadow-md' : 'border-gray-300 dark:border-gray-700 opacity-80 hover:opacity-100'}`}>
+                      <Image src={m.url} alt={`thumb-${i}`} width={160} height={96} className="object-cover w-full h-full" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* navigation */}
+              {media && media.length > 1 && (
+                <>
+                  <button
+                    aria-label="Previous"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center text-2xl"
+                    onClick={() => setActiveIdx(idx => Math.max(0, idx - 1))}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    aria-label="Next"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center text-2xl"
+                    onClick={() => setActiveIdx(idx => Math.min(media.length - 1, idx + 1))}
+                  >
+                    ›
+                  </button>
+                </>
               )}
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
     </div>
   );
 }
