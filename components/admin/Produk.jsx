@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Table, Button, Form, Space, Tag, message } from 'antd';
+import { Table, Button, Form, Space, Tag, message, Popconfirm} from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ProdukForm from './produk/ProdukForm';
 
 export default function ProdukAdmin() {
@@ -299,7 +300,6 @@ export default function ProdukAdmin() {
       throw err;
     }
   }
-
   // manage/delete benefit removed
 
   const columns = [
@@ -309,8 +309,10 @@ export default function ProdukAdmin() {
     { title: 'Benefits', dataIndex: 'benefits', key: 'benefits', render: (b) => (b || []).map(x => <Tag key={x}>{x}</Tag>) },
     { title: 'Aksi', key: 'aksi', render: (_, r) => (
       <Space>
-        <Button onClick={() => openEdit(r)}>Edit</Button>
-        <Button danger onClick={() => handleDelete(r.id)}>Hapus</Button>
+        <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Edit</Button>
+        <Popconfirm title="Hapus Produk?" onConfirm={() => handleDelete(r.id)}>
+          <Button size="small" danger icon={<DeleteOutlined />}>Hapus</Button>
+        </Popconfirm>
       </Space>
     ) }
   ];
@@ -318,7 +320,7 @@ export default function ProdukAdmin() {
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Button type="primary" onClick={openCreate}>Tambah Produk</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Tambah Produk</Button>
       </Space>
       <Table rowKey="id" columns={columns} dataSource={rows} loading={loading} />
 

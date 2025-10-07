@@ -2,27 +2,35 @@
 
 import React, { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, Input, Space, message, Popconfirm, Tag } from "antd";
+import { PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from "@ant-design/icons";
 
 export default function ManajamenKategoriAndBenefit() {
   // State
   const [kategori, setKategori] = useState([]);
   const [benefit, setBenefit] = useState([]);
+  const [kategoriBenefit, setKategoriBenefit] = useState([]);
+  const [kategoriBenefitCreateModalOpen, setKategoriBenefitCreateModalOpen] = useState(false);
+  const [formKb] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("kategori"); // "kategori" or "benefit"
   const [editing, setEditing] = useState(null);
+  const [kategoriBenefitModalOpen, setKategoriBenefitModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   // Fetch data
   async function fetchAll() {
     setLoading(true);
     try {
-      const [katRes, benRes] = await Promise.all([
+      const [katRes, benRes, katBenRes] = await Promise.all([
         fetch("/api/kategori-produk"),
         fetch("/api/benefit"),
+        fetch("/api/benefit/kategori"),
       ]);
       setKategori(await katRes.json());
       setBenefit(await benRes.json());
+      // kategori benefit endpoint returns list of benefit categories
+      setKategoriBenefit(await katBenRes.json());
     } catch (e) {
       message.error("Gagal memuat data kategori/benefit");
     } finally {
@@ -41,7 +49,11 @@ export default function ManajamenKategoriAndBenefit() {
       if (type === "kategori") {
         form.setFieldsValue({ nama_kategori: record.nama_kategori, sub_kategori: record.sub_kategori });
       } else {
-        form.setFieldsValue({ benefit: record.benefit, kategori_benefit_id: record.kategori_benefit_id });
+        if (type === 'benefit') {
+          form.setFieldsValue({ benefit: record.benefit, kategori_benefit_id: record.kategori_benefit_id });
+        } else if (type === 'kategori_benefit') {
+          form.setFieldsValue({ nama_kategori: record.nama_kategori });
+        }
       }
     }
     setModalOpen(true);
@@ -80,6 +92,21 @@ export default function ManajamenKategoriAndBenefit() {
           });
         }
       }
+      if (modalType === 'kategori_benefit') {
+        if (editing) {
+          await fetch(`/api/benefit/kategori?id=${editing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(vals),
+          });
+        } else {
+          await fetch('/api/benefit/kategori', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(vals),
+          });
+        }
+      }
       setModalOpen(false);
       setEditing(null);
       await fetchAll();
@@ -92,7 +119,13 @@ export default function ManajamenKategoriAndBenefit() {
   // Delete
   async function handleDelete(type, id) {
     try {
-      await fetch(`/api/${type === "kategori" ? "kategori-produk" : "benefit"}?id=${id}`, { method: "DELETE" });
+      if (type === 'kategori') {
+        await fetch(`/api/kategori-produk?id=${id}`, { method: 'DELETE' });
+      } else if (type === 'benefit') {
+        await fetch(`/api/benefit?id=${id}`, { method: 'DELETE' });
+      } else if (type === 'kategori_benefit') {
+        await fetch(`/api/benefit/kategori?id=${id}`, { method: 'DELETE' });
+      }
       await fetchAll();
       message.success("Berhasil dihapus");
     } catch (e) {
@@ -106,9 +139,9 @@ export default function ManajamenKategoriAndBenefit() {
     { title: "Sub Kategori", dataIndex: "sub_kategori", key: "sub_kategori" },
     { title: "Aksi", key: "aksi", render: (_, r) => (
       <Space>
-        <Button size="small" onClick={() => openModal("kategori", r)}>Edit</Button>
+        <Button size="small" icon={<EditOutlined />} onClick={() => openModal("kategori", r)}>Edit</Button>
         <Popconfirm title="Hapus kategori?" onConfirm={() => handleDelete("kategori", r.id)}>
-          <Button size="small" danger>Hapus</Button>
+          <Button size="small" danger icon={<DeleteOutlined />}>Hapus</Button>
         </Popconfirm>
       </Space>
     ) },
@@ -119,20 +152,31 @@ export default function ManajamenKategoriAndBenefit() {
     { title: "Kategori Benefit", dataIndex: "nama_kategori", key: "nama_kategori", render: (v) => v ? <Tag>{v}</Tag> : "-" },
     { title: "Aksi", key: "aksi", render: (_, r) => (
       <Space>
-        <Button size="small" onClick={() => openModal("benefit", r)}>Edit</Button>
+        <Button size="small" icon={<EditOutlined />} onClick={() => openModal("benefit", r)}>Edit</Button>
         <Popconfirm title="Hapus benefit?" onConfirm={() => handleDelete("benefit", r.id)}>
-          <Button size="small" danger>Hapus</Button>
+          <Button size="small" danger icon={<DeleteOutlined />}>Hapus</Button>
         </Popconfirm>
       </Space>
     ) },
   ];
 
+  const kategoriBenefitColumns = [
+    { title: 'Nama Kategori', dataIndex: 'nama_kategori', key: 'nama_kategori' },
+    { title: 'Jumlah Benefit', dataIndex: 'jumlah_benefit', key: 'jumlah_benefit' },
+    { title: 'Aksi', key: 'aksi', render: (_, r) => (
+      <Space>
+        <Popconfirm title="Hapus kategori benefit?" onConfirm={() => handleDelete('kategori_benefit', r.id)}>
+          <Button size="small" danger icon={<DeleteOutlined />}>Hapus</Button>
+        </Popconfirm>
+      </Space>
+    ) }
+  ];
+
   return (
     <div>
-      <h2 style={{ fontWeight: 600, fontSize: 20, marginBottom: 16 }}>Manajemen Kategori & Benefit</h2>
+      <h2 style={{ fontWeight: 600, fontSize: 20, marginBottom: 16 }}>Manajemen Kategori</h2>
       <Space style={{ marginBottom: 16 }}>
-        <Button type="primary" onClick={() => openModal("kategori")}>Tambah Kategori</Button>
-        <Button type="primary" onClick={() => openModal("benefit")}>Tambah Benefit</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("kategori")}>Tambah Kategori</Button>
       </Space>
       <Table
         columns={kategoriColumns}
@@ -140,17 +184,69 @@ export default function ManajamenKategoriAndBenefit() {
         rowKey="id"
         loading={loading}
         pagination={false}
-        title={() => <span style={{ fontWeight: 500 }}>Daftar Kategori Produk</span>}
         style={{ marginBottom: 32 }}
       />
+
+      <h2 style={{ fontWeight: 600, fontSize: 20, marginBottom: 16 }}>Manajemen Benefit</h2>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("benefit")}>Tambah Benefit</Button>
+        <Button icon={<AppstoreOutlined />} onClick={() => setKategoriBenefitModalOpen(true)}>Kelola Kategori Benefit</Button>
+      </Space>
       <Table
         columns={benefitColumns}
         dataSource={benefit}
         rowKey="id"
         loading={loading}
         pagination={false}
-        title={() => <span style={{ fontWeight: 500 }}>Daftar Benefit</span>}
       />
+      <Modal
+        open={kategoriBenefitModalOpen}
+        onCancel={() => setKategoriBenefitModalOpen(false)}
+        footer={null}
+        title="Kelola Kategori Benefit"
+      >
+        <Space style={{ marginBottom: 12 }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setKategoriBenefitCreateModalOpen(true)}>Tambah Kategori</Button>
+        </Space>
+        <Table
+          columns={kategoriBenefitColumns}
+          dataSource={kategoriBenefit}
+          rowKey="id"
+          loading={loading}
+          pagination={false}
+        />
+      </Modal>
+
+      {/* Create-only modal for kategori_benefit */}
+      <Modal
+        open={kategoriBenefitCreateModalOpen}
+        onCancel={() => { setKategoriBenefitCreateModalOpen(false); formKb.resetFields(); }}
+        onOk={async () => {
+          try {
+            const vals = await formKb.validateFields();
+            await fetch('/api/benefit/kategori', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(vals),
+            });
+            setKategoriBenefitCreateModalOpen(false);
+            formKb.resetFields();
+            await fetchAll();
+            message.success('Berhasil menambah kategori benefit');
+          } catch (err) {
+            message.error('Gagal menambah kategori benefit');
+          }
+        }}
+        title="Tambah Kategori Benefit"
+        okText="Simpan"
+        cancelText="Batal"
+      >
+        <Form form={formKb} layout="vertical">
+          <Form.Item name="nama_kategori" label="Nama Kategori" rules={[{ required: true, message: 'Wajib diisi' }]}>
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
       <Modal
         open={modalOpen}
         onCancel={() => { setModalOpen(false); setEditing(null); }}

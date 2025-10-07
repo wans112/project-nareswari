@@ -1,5 +1,7 @@
 import "./globals.css";
 import '@ant-design/v5-patch-for-react-19';
+import Tracker from '@/components/microproses/Tracker';
+import DiskonRefresh from '@/components/microproses/DiskonRefresh';
 
 export const metadata = {
   title: "Nareswari Galeri",
@@ -10,6 +12,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`antialiased`}>
+        <Tracker />
+        <DiskonRefresh />
         {children}
       </body>
     </html>

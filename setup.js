@@ -10,92 +10,71 @@ function exitWith(msg, code = 1) {
 	process.exit(code);
 }
 
-// Ensure database directory exists
-try {
-	if (!fs.existsSync(DB_DIR)) {
-		fs.mkdirSync(DB_DIR, { recursive: true });
-		console.log('Created directory:', DB_DIR);
-	} else {
-		console.log('Directory exists:', DB_DIR);
+function ensureDir(dir) {
+	try {
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+			console.log('Created directory:', dir);
+		} else {
+			console.log('Directory exists:', dir);
+		}
+	} catch (err) {
+		exitWith('Failed to create directory ' + dir + ': ' + err.message);
 	}
-} catch (err) {
-	exitWith('Failed to create database directory: ' + err.message);
 }
 
-// Ensure media directory inside database exists (for uploaded/managed media files)
+// Ensure database and media directories
+ensureDir(DB_DIR);
 const MEDIA_DIR = path.join(DB_DIR, 'media');
-try {
-	if (!fs.existsSync(MEDIA_DIR)) {
-		fs.mkdirSync(MEDIA_DIR, { recursive: true });
-		console.log('Created media directory:', MEDIA_DIR);
-	} else {
-		console.log('Media directory exists:', MEDIA_DIR);
-	}
-} catch (err) {
-	exitWith('Failed to create media directory: ' + err.message);
-}
+ensureDir(MEDIA_DIR);
 
-// Try to load better-sqlite3 (fast, synchronous); if missing, instruct user how to install
+// Load better-sqlite3 and open DB
 let Database;
 try {
 	Database = require('better-sqlite3');
 } catch (err) {
 	console.error('Package "better-sqlite3" not found.');
-	console.log('\nInstall it with one of the following commands (PowerShell / npm):');
-	console.log('  npm install better-sqlite3 --save');
-	console.log('\nOr use yarn:');
-	console.log('  yarn add better-sqlite3');
-	console.log('\nAfter installing, rerun: node setup.js');
+	console.log('\nInstall it with: npm install better-sqlite3 --save');
 	process.exit(2);
 }
 
-// Open (or create) database
 let db;
 try {
-	// avoid verbose native logs; keep console output concise
 	db = new Database(DB_FILE);
 	console.log(`Opened SQLite database at ${DB_FILE}`);
 } catch (err) {
 	exitWith('Failed to open database: ' + err.message);
 }
 
-// Apply pragmatic optimizations (safe defaults)
+// Apply pragmatic PRAGMA settings (grouped and tolerant)
 try {
-	// Use WAL for better concurrency and performance
-	const wal = db.pragma('journal_mode = WAL');
-	console.log('journal_mode ->', wal);
+	const pragmas = [
+		['journal_mode', 'WAL'],
+		['synchronous', 'NORMAL'],
+		['temp_store', 'MEMORY'],
+		['foreign_keys', 'ON'],
+		['cache_size', '-20000'],
+		['mmap_size', '3000000000'],
+	];
 
-	// Moderate synchronous for better speed while keeping reasonable durability
-	db.pragma('synchronous = NORMAL');
-
-	// Keep temporary tables in memory
-	db.pragma('temp_store = MEMORY');
-
-	// Enable foreign keys
-	db.pragma('foreign_keys = ON');
-
-	// Increase cache size (negative value uses KB, here ~20MB)
-	try {
-		db.pragma('cache_size = -20000');
-	} catch (e) {
-		// Some SQLite builds may not accept very large cache sizes; ignore safely
+	for (const [k, v] of pragmas) {
+		try {
+			const res = db.pragma(`${k} = ${v}`);
+			if (k === 'journal_mode') console.log('journal_mode ->', res);
+		} catch (e) {
+			// ignore unsupported pragmas
+		}
 	}
-
-	// Optionally set mmap_size if supported (improves I/O on modern builds)
-	try {
-		db.pragma('mmap_size = 3000000000');
-	} catch (e) {
-		// ignore if unsupported
-	}
-
 	console.log('Applied PRAGMA optimizations');
 } catch (err) {
 	console.warn('Failed to apply some PRAGMA settings:', err.message);
 }
 
-// Create tables: users, benefit, product
+// Create tables: users, benefit, product, etc. Wrapped in a transaction for safety
 try {
 	const createSql = `
+		BEGIN;
+
 		CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT,
@@ -105,7 +84,6 @@ try {
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-
 
 		CREATE TABLE IF NOT EXISTS kategori_benefit (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,35 +99,35 @@ try {
 			FOREIGN KEY (kategori_benefit_id) REFERENCES kategori_benefit(id) ON DELETE CASCADE
 		);
 
-        CREATE TABLE IF NOT EXISTS kategori_produk (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nama_kategori TEXT NOT NULL,
-            sub_kategori TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
+		CREATE TABLE IF NOT EXISTS kategori_produk (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			nama_kategori TEXT NOT NULL,
+			sub_kategori TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
 
 		CREATE TABLE IF NOT EXISTS produk (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-            kategori_produk_id INTEGER NOT NULL,
+			kategori_produk_id INTEGER NOT NULL,
 			nama_paket TEXT NOT NULL,
 			harga INTEGER,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (kategori_produk_id) REFERENCES kategori_produk(id) ON DELETE CASCADE
+			FOREIGN KEY (kategori_produk_id) REFERENCES kategori_produk(id) ON DELETE CASCADE
 		);
 
-        CREATE INDEX IF NOT EXISTS idx_produk_kategori ON produk(kategori_produk_id);
+		CREATE INDEX IF NOT EXISTS idx_produk_kategori ON produk(kategori_produk_id);
 
-        CREATE TABLE IF NOT EXISTS produk_benefit (
-            produk_id INTEGER NOT NULL,
-            benefit_id INTEGER NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (produk_id, benefit_id),
-            FOREIGN KEY (produk_id) REFERENCES produk(id) ON DELETE CASCADE,
-            FOREIGN KEY (benefit_id) REFERENCES benefit(id) ON DELETE CASCADE
-        );
+		CREATE TABLE IF NOT EXISTS produk_benefit (
+			produk_id INTEGER NOT NULL,
+			benefit_id INTEGER NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (produk_id, benefit_id),
+			FOREIGN KEY (produk_id) REFERENCES produk(id) ON DELETE CASCADE,
+			FOREIGN KEY (benefit_id) REFERENCES benefit(id) ON DELETE CASCADE
+		);
 
-        CREATE INDEX IF NOT EXISTS idx_produk_benefit_produk ON produk_benefit(produk_id);
-        CREATE INDEX IF NOT EXISTS idx_produk_benefit_benefit ON produk_benefit(benefit_id);
+		CREATE INDEX IF NOT EXISTS idx_produk_benefit_produk ON produk_benefit(produk_id);
+		CREATE INDEX IF NOT EXISTS idx_produk_benefit_benefit ON produk_benefit(benefit_id);
 
 		CREATE TABLE IF NOT EXISTS media (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -160,10 +138,42 @@ try {
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_media_produk ON media(produk_id);
+
+		CREATE TABLE IF NOT EXISTS diskon (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			nama_diskon TEXT NOT NULL,
+			produk_id INTEGER NOT NULL,
+			deskripsi TEXT,
+			persentase INTEGER,
+			nominal INTEGER,
+			aktif INTEGER DEFAULT 1,
+			mulai DATETIME,
+			berakhir DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (produk_id) REFERENCES produk(id) ON DELETE CASCADE
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_diskon_produk ON diskon(produk_id);
+
+		CREATE TABLE IF NOT EXISTS page_views (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			path TEXT NOT NULL,
+			hostname TEXT,
+			referrer TEXT,
+			user_agent TEXT,
+			ip TEXT,
+			lang TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_page_views_path ON page_views(path);
+		CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at);
+
+		COMMIT;
 	`;
 
 	db.exec(createSql);
-	console.log('Ensured tables: users, benefit, kategori_produk, produk, produk_benefit, media (and indexes)');
+	console.log('Ensured tables: users, benefit, kategori_produk, produk, produk_benefit, media, diskon (and indexes)');
 } catch (err) {
 	exitWith('Failed to create tables: ' + err.message);
 }
