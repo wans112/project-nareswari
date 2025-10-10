@@ -5,20 +5,54 @@ function getInsertId(info) {
   return info.lastInsertROWID || info.lastInsertRowid || info.lastInsertId;
 }
 
+function normalizeCode({ code, nama, sub }) {
+  const base = code ? String(code).trim() : '';
+  let candidate = base || [nama, sub].filter(Boolean).join(' ');
+  candidate = candidate || nama || 'KATEGORI';
+  candidate = String(candidate || '').trim();
+  const cleaned = candidate
+    .toUpperCase()
+    .normalize('NFKD')
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+  return cleaned || 'KATEGORI';
+}
+
+function normalizeDescription(desc, nama, sub) {
+  const base = desc ? String(desc).trim() : '';
+  if (base) return base;
+  const combined = [nama, sub].filter(Boolean).join(' — ');
+  return combined || (nama || 'Kategori');
+}
+
 export async function POST(req) {
   try {
     const db = await init();
     const body = await req.json();
     const nama_kategori = body?.nama_kategori ? String(body.nama_kategori).trim() : '';
-    const sub_kategori = body?.sub_kategori !== undefined ? String(body.sub_kategori || '').trim() : null;
+    const subRaw = body?.sub_kategori !== undefined ? String(body.sub_kategori || '').trim() : '';
+    const sub_kategori = subRaw ? subRaw : null;
+    const code_kategori = normalizeCode({ code: body?.code_kategori, nama: nama_kategori, sub: sub_kategori });
+    const deskripsi_kategori = normalizeDescription(body?.deskripsi_kategori, nama_kategori, sub_kategori);
 
     if (!nama_kategori) {
       return NextResponse.json({ error: 'nama_kategori required' }, { status: 422 });
     }
 
+    const byCode = db
+      .prepare('SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori FROM kategori_produk WHERE lower(code_kategori) = lower(?)')
+      .get(code_kategori);
+    if (byCode) {
+      return NextResponse.json(byCode, { status: 200 });
+    }
+
     const existing = db
       .prepare(
-        'SELECT id, nama_kategori, sub_kategori FROM kategori_produk WHERE lower(nama_kategori) = lower(?) AND (sub_kategori IS ? OR lower(sub_kategori) = lower(?))'
+        `SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori
+         FROM kategori_produk
+         WHERE lower(nama_kategori) = lower(?)
+           AND (sub_kategori IS ? OR lower(sub_kategori) = lower(?))`
       )
       .get(nama_kategori, sub_kategori || null, sub_kategori || null);
 
@@ -27,11 +61,13 @@ export async function POST(req) {
     }
 
     const info = db
-      .prepare('INSERT INTO kategori_produk (nama_kategori, sub_kategori) VALUES (?, ?)')
-      .run(nama_kategori, sub_kategori || null);
+      .prepare(
+        'INSERT INTO kategori_produk (nama_kategori, sub_kategori, code_kategori, deskripsi_kategori) VALUES (?, ?, ?, ?)'
+      )
+      .run(nama_kategori, sub_kategori || null, code_kategori, deskripsi_kategori);
     const id = getInsertId(info);
     const row = db
-      .prepare('SELECT id, nama_kategori, sub_kategori FROM kategori_produk WHERE id = ?')
+      .prepare('SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori FROM kategori_produk WHERE id = ?')
       .get(id);
 
     return NextResponse.json(row, { status: 201 });
@@ -49,7 +85,7 @@ export async function GET(req) {
 
     if (id) {
       const row = db
-        .prepare('SELECT id, nama_kategori, sub_kategori FROM kategori_produk WHERE id = ?')
+        .prepare('SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori FROM kategori_produk WHERE id = ?')
         .get(id);
       if (!row) {
         return NextResponse.json({ error: 'Kategori tidak ditemukan' }, { status: 404 });
@@ -62,16 +98,17 @@ export async function GET(req) {
       const term = `%${search.toLowerCase()}%`;
       rows = db
         .prepare(
-          `SELECT id, nama_kategori, sub_kategori
+          `SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori
            FROM kategori_produk
            WHERE lower(nama_kategori) LIKE ?
               OR lower(COALESCE(sub_kategori, '')) LIKE ?
+              OR lower(code_kategori) LIKE ?
            ORDER BY nama_kategori, sub_kategori`
         )
-        .all(term, term);
+        .all(term, term, term);
     } else {
       rows = db
-        .prepare('SELECT id, nama_kategori, sub_kategori FROM kategori_produk ORDER BY nama_kategori, sub_kategori')
+        .prepare('SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori FROM kategori_produk ORDER BY nama_kategori, sub_kategori')
         .all();
     }
 
@@ -91,22 +128,46 @@ export async function PUT(req) {
     }
 
     const current = db
-      .prepare('SELECT id, nama_kategori, sub_kategori FROM kategori_produk WHERE id = ?')
+      .prepare('SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori FROM kategori_produk WHERE id = ?')
       .get(id);
     if (!current) {
       return NextResponse.json({ error: 'Kategori tidak ditemukan' }, { status: 404 });
     }
 
     const body = await req.json();
-    let nama = body.hasOwnProperty('nama_kategori') ? String(body.nama_kategori || '').trim() : undefined;
-    let sub = body.hasOwnProperty('sub_kategori') ? String(body.sub_kategori || '').trim() : undefined;
+    const hasNama = Object.prototype.hasOwnProperty.call(body, 'nama_kategori');
+    const hasSub = Object.prototype.hasOwnProperty.call(body, 'sub_kategori');
+    const hasCode = Object.prototype.hasOwnProperty.call(body, 'code_kategori');
+    const hasDesc = Object.prototype.hasOwnProperty.call(body, 'deskripsi_kategori');
 
-    if (nama !== undefined && !nama) {
+    const rawNama = hasNama ? String(body.nama_kategori || '').trim() : undefined;
+    const rawSub = hasSub ? String(body.sub_kategori || '').trim() : undefined;
+    const rawCode = hasCode ? String(body.code_kategori || '').trim() : undefined;
+    const rawDesc = hasDesc ? String(body.deskripsi_kategori || '').trim() : undefined;
+
+    if (rawNama !== undefined && !rawNama) {
       return NextResponse.json({ error: 'nama_kategori required' }, { status: 422 });
     }
+    if (rawCode !== undefined && !rawCode) {
+      return NextResponse.json({ error: 'code_kategori required' }, { status: 422 });
+    }
+    if (rawDesc !== undefined && !rawDesc) {
+      return NextResponse.json({ error: 'deskripsi_kategori required' }, { status: 422 });
+    }
 
-    const finalNama = nama !== undefined ? nama : current.nama_kategori;
-    const finalSub = sub !== undefined ? (sub ? sub : null) : current.sub_kategori;
+    const finalNama = rawNama !== undefined ? rawNama : current.nama_kategori;
+    const finalSub = rawSub !== undefined ? (rawSub ? rawSub : null) : current.sub_kategori;
+    const finalCode = hasCode
+      ? normalizeCode({ code: rawCode, nama: finalNama, sub: finalSub })
+      : current.code_kategori;
+    const finalDesc = hasDesc ? normalizeDescription(rawDesc, finalNama, finalSub) : current.deskripsi_kategori;
+
+    const duplicateCode = db
+      .prepare('SELECT id FROM kategori_produk WHERE lower(code_kategori) = lower(?) AND id != ?')
+      .get(finalCode, id);
+    if (duplicateCode) {
+      return NextResponse.json({ error: 'code_kategori sudah digunakan' }, { status: 409 });
+    }
 
     const duplicate = db
       .prepare(
@@ -119,13 +180,21 @@ export async function PUT(req) {
 
     const parts = [];
     const params = [];
-    if (nama !== undefined) {
+    if (hasNama) {
       parts.push('nama_kategori = ?');
       params.push(finalNama);
     }
-    if (sub !== undefined) {
+    if (hasSub) {
       parts.push('sub_kategori = ?');
       params.push(finalSub || null);
+    }
+    if (hasCode) {
+      parts.push('code_kategori = ?');
+      params.push(finalCode);
+    }
+    if (hasDesc) {
+      parts.push('deskripsi_kategori = ?');
+      params.push(finalDesc);
     }
 
     if (parts.length === 0) {
@@ -136,7 +205,7 @@ export async function PUT(req) {
     db.prepare(`UPDATE kategori_produk SET ${parts.join(', ')} WHERE id = ?`).run(...params);
 
     const row = db
-      .prepare('SELECT id, nama_kategori, sub_kategori FROM kategori_produk WHERE id = ?')
+      .prepare('SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori FROM kategori_produk WHERE id = ?')
       .get(id);
     return NextResponse.json(row, { status: 200 });
   } catch (err) {

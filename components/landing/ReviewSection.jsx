@@ -1,62 +1,10 @@
 "use client"
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import 'bootstrap-icons/font/bootstrap-icons.css';
-
-const reviews = [
-	{
-		id: 1,
-		href: 'https://maps.app.goo.gl/ZeaUAk1S4Xs8QYyw9',
-		name: "Chica Rohaetun",
-		rating: 5,
-		text: "Suka banget sama pelayananya orang² nya juga ramah² , hasil make up nya juga bagus bikin pangling, semoga makin sukses yah kakk",
-	},
-	{
-		id: 2,
-		href: '/testimonials/2',
-		name: "Budi Santoso",
-		rating: 4,
-		text: "Tim profesional dan ramah — koordinasi mudah. Beberapa detail minor, tapi keseluruhan sangat baik.",
-	},
-	{
-		id: 3,
-		href: '/testimonials/3',
-		name: "Ayu Lestari",
-		rating: 5,
-		text: "Dekorasi sesuai tema, fotografer juga merekomendasikan tata pencahayaan. Sangat puas!",
-	},
-	{
-		id: 4,
-		href: '/testimonials/4',
-		name: "Rudi Wijaya",
-		rating: 4,
-		text: "Hasil foto preweddingnya luar biasa, lokasi dan stylingnya pas. Timnya juga sangat profesional.",
-	},
-	{
-		id: 5,
-		href: '/testimonials/5',
-		name: "Dewi Kartika",
-		rating: 5,
-		text: "Make up natural dan tahan lama, persis seperti yang saya inginkan. Timnya sangat perhatian dan detail.",
-	},
-	{
-		id: 6,
-		href: '/testimonials/6',
-		name: "Ahmad Maulana",
-		rating: 4,
-		text: "Paket lengkap dengan harga bersaing. Beberapa penyesuaian di hari H, tapi hasil akhirnya memuaskan.",
-	},
-	{
-		id: 7,
-		href: '/testimonials/7',
-		name: "Lina Marlina",
-		rating: 5,
-		text: "Sangat direkomendasikan untuk dekorasi pernikahan. Timnya kreatif dan sangat membantu dalam proses perencanaan.",
-	},
-];
 
 function Stars({ value = 0, max = 5 }) {
 	return (
@@ -76,10 +24,56 @@ function Stars({ value = 0, max = 5 }) {
 export default function ReviewSection() {
 	const containerRef = useRef(null);
 	const timelineRef = useRef(null);
+	const [reviews, setReviews] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
+
+	useEffect(() => {
+		let active = true;
+		async function loadReviews() {
+			setLoading(true);
+			try {
+				const res = await fetch('/api/reviews', { cache: 'no-store' });
+				if (!res.ok) throw new Error(`Gagal memuat ulasan: ${res.status}`);
+				const data = await res.json();
+				if (!active) return;
+				const normalized = Array.isArray(data)
+					? data.map((item, idx) => ({
+						id: item.id ?? idx,
+						href: item.href || '#',
+						name: item.nama || 'Anonim',
+						rating: Number(item.rating) || 0,
+						text: item.isi || '',
+					}))
+					: [];
+				setReviews(normalized);
+				setError(null);
+			} catch (err) {
+				if (!active) return;
+				setError(err.message);
+				setReviews([]);
+			} finally {
+				if (active) setLoading(false);
+			}
+		}
+
+		loadReviews();
+		return () => {
+			active = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		const container = containerRef.current;
 		if (!container) return;
+		if (!reviews || reviews.length <= 1) {
+			if (timelineRef.current) {
+				timelineRef.current.kill();
+				timelineRef.current = null;
+				container.style.transform = '';
+			}
+			return;
+		}
 
 		const cards = container.querySelectorAll('.review-card');
 		if (cards.length === 0) return;
@@ -88,34 +82,28 @@ export default function ReviewSection() {
 		const gap = 24; // 1.5rem gap
 		const moveDistance = cardWidth + gap;
 
-		// Create infinite scroll animation
-		const createAnimation = () => {
-			timelineRef.current = gsap.timeline({ repeat: -1 });
-			
-			timelineRef.current.to(container, {
-				x: -moveDistance * reviews.length,
-				duration: reviews.length * 4, // 4 seconds per card
-				ease: "none"
-			});
+		if (timelineRef.current) {
+			timelineRef.current.kill();
+			timelineRef.current = null;
+		}
 
-			timelineRef.current.set(container, { x: 0 });
-		};
+		const distance = moveDistance * reviews.length;
+		const duration = Math.max(1, reviews.length) * 4;
 
-		createAnimation();
+		timelineRef.current = gsap.timeline({ repeat: -1 });
+		timelineRef.current.to(container, {
+			x: -distance,
+			duration,
+			ease: "none"
+		});
+		timelineRef.current.set(container, { x: 0 });
 
-		// Slow down on hover (instead of pausing)
 		const handleMouseEnter = () => {
-			if (timelineRef.current) {
-				// slow to 20% speed
-				timelineRef.current.timeScale(0.2);
-			}
+			if (timelineRef.current) timelineRef.current.timeScale(0.2);
 		};
 
 		const handleMouseLeave = () => {
-			if (timelineRef.current) {
-				// restore normal speed
-				timelineRef.current.timeScale(1);
-			}
+			if (timelineRef.current) timelineRef.current.timeScale(1);
 		};
 
 		container.addEventListener('mouseenter', handleMouseEnter);
@@ -124,14 +112,19 @@ export default function ReviewSection() {
 		return () => {
 			if (timelineRef.current) {
 				timelineRef.current.kill();
+				timelineRef.current = null;
 			}
 			container.removeEventListener('mouseenter', handleMouseEnter);
 			container.removeEventListener('mouseleave', handleMouseLeave);
+			container.style.transform = '';
 		};
-	}, []);
+	}, [reviews]);
 
-	// Create duplicated reviews for seamless loop
-	const duplicatedReviews = [...reviews, ...reviews];
+	const duplicatedReviews = useMemo(() => {
+		if (!reviews || reviews.length === 0) return [];
+		if (reviews.length === 1) return reviews;
+		return [...reviews, ...reviews];
+	}, [reviews]);
 
 	return (
 		// Section background is white to invert from the dark site theme.
@@ -140,6 +133,18 @@ export default function ReviewSection() {
 				<h2 className="text-3xl sm:text-4xl font-extrabold mb-6 text-center">
 					Ulasan Pelanggan
 				</h2>
+
+				{error && (
+					<p className="text-center text-sm text-destructive mb-4">{error}</p>
+				)}
+
+				{loading && (
+					<p className="text-center text-sm text-muted-foreground mb-4">Memuat ulasan...</p>
+				)}
+
+				{!loading && !error && reviews.length === 0 && (
+					<p className="text-center text-sm text-muted-foreground mb-4">Belum ada ulasan saat ini.</p>
+				)}
 
 				{/* Carousel container - allow visible overflow on small screens to avoid clipping scaled cards */}
 				<div className="relative overflow-visible px-4 sm:overflow-hidden sm:px-8">

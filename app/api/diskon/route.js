@@ -5,15 +5,6 @@ function normalizeInsertId(info) {
   return info && (info.lastInsertROWID || info.lastInsertRowid || info.lastInsertId || null);
 }
 
-function toSqliteDatetime(val) {
-  // accept Date or ISO string; return 'YYYY-MM-DD HH:MM:SS' or null
-  if (!val) return null;
-  const t = Date.parse(val);
-  if (isNaN(t)) return null;
-  const d = new Date(t);
-  return d.toISOString().slice(0, 19).replace('T', ' ');
-}
-
 export async function GET(req) {
   try {
     const db = await init();
@@ -21,11 +12,18 @@ export async function GET(req) {
     const produk_id = url.searchParams.get('produk_id');
     const includeAll = url.searchParams.get('include_all');
 
-    // Auto-deactivate expired discounts
+    // Sinkronkan status aktif berdasarkan rentang waktu mulai-berakhir
     try {
-      db.prepare("UPDATE diskon SET aktif = 0 WHERE aktif = 1 AND berakhir IS NOT NULL AND datetime(berakhir) <= datetime('now')").run();
+      db.prepare(`
+        UPDATE diskon
+        SET aktif = CASE
+          WHEN mulai IS NOT NULL AND datetime('now') < datetime(mulai) THEN 0
+          WHEN berakhir IS NOT NULL AND datetime('now') > datetime(berakhir) THEN 0
+          ELSE 1
+        END
+      `).run();
     } catch (e) {
-      // ignore if datetime() comparisons fail on some builds
+      // abaikan jika fungsi datetime tidak tersedia
     }
 
     let rows;
@@ -61,8 +59,10 @@ export async function POST(req) {
   const deskripsi = body?.deskripsi ? String(body.deskripsi) : null;
   const rawMulai = body?.mulai ? String(body.mulai) : null;
   const rawBerakhir = body?.berakhir ? String(body.berakhir) : null;
-  const mulai = toSqliteDatetime(rawMulai);
-  const berakhir = toSqliteDatetime(rawBerakhir);
+  const mulaiDate = rawMulai ? new Date(rawMulai) : null;
+  const berakhirDate = rawBerakhir ? new Date(rawBerakhir) : null;
+  const mulai = mulaiDate && !Number.isNaN(mulaiDate.getTime()) ? mulaiDate.toISOString() : null;
+  const berakhir = berakhirDate && !Number.isNaN(berakhirDate.getTime()) ? berakhirDate.toISOString() : null;
 
     if (!nama_diskon) return NextResponse.json({ error: 'nama_diskon required' }, { status: 422 });
     if (!produk_id) return NextResponse.json({ error: 'produk_id required' }, { status: 422 });
@@ -76,10 +76,13 @@ export async function POST(req) {
     }
 
     // determine aktif based on berakhir
+    const nowMs = Date.now();
     let aktif = 1;
-    if (rawBerakhir) {
-      const t = Date.parse(rawBerakhir);
-      if (!isNaN(t) && t <= Date.now()) aktif = 0;
+    if (mulaiDate && !Number.isNaN(mulaiDate.getTime()) && nowMs < mulaiDate.getTime()) {
+      aktif = 0;
+    }
+    if (berakhirDate && !Number.isNaN(berakhirDate.getTime()) && nowMs > berakhirDate.getTime()) {
+      aktif = 0;
     }
 
     const info = db.prepare(
@@ -111,22 +114,30 @@ export async function PUT(req) {
   const persentase = body?.persentase != null ? Number(body.persentase) : existing.persentase;
   const nominal = body?.nominal != null ? Number(body.nominal) : existing.nominal;
   const deskripsi = body?.deskripsi != null ? String(body.deskripsi) : existing.deskripsi;
-  const rawMulai = body?.mulai != null ? String(body.mulai) : existing.mulai;
-  const rawBerakhir = body?.berakhir != null ? String(body.berakhir) : existing.berakhir;
-  const mulai = toSqliteDatetime(rawMulai) || existing.mulai;
-  const berakhir = toSqliteDatetime(rawBerakhir) || existing.berakhir;
 
-    // determine aktif based on berakhir (if provided) or keep existing
-    let aktif = existing.aktif != null ? existing.aktif : 1;
-    if (body && Object.prototype.hasOwnProperty.call(body, 'berakhir')) {
-      if (rawBerakhir) {
-        const t = Date.parse(rawBerakhir);
-        if (!isNaN(t) && t <= Date.now()) aktif = 0;
-        else aktif = 1;
-      } else {
-        // clearing berakhir -> keep aktif = 1
-        aktif = 1;
-      }
+  const hasMulai = Object.prototype.hasOwnProperty.call(body, 'mulai');
+  const hasBerakhir = Object.prototype.hasOwnProperty.call(body, 'berakhir');
+  const rawMulai = hasMulai ? (body.mulai ? String(body.mulai) : null) : existing.mulai;
+  const rawBerakhir = hasBerakhir ? (body.berakhir ? String(body.berakhir) : null) : existing.berakhir;
+
+  const mulaiDate = rawMulai ? new Date(rawMulai) : null;
+  const berakhirDate = rawBerakhir ? new Date(rawBerakhir) : null;
+
+  const mulai = mulaiDate && !Number.isNaN(mulaiDate.getTime())
+    ? mulaiDate.toISOString()
+    : (rawMulai ?? null);
+
+  const berakhir = berakhirDate && !Number.isNaN(berakhirDate.getTime())
+    ? berakhirDate.toISOString()
+    : (rawBerakhir ?? null);
+
+    const nowMs = Date.now();
+    let aktif = 1;
+    if (mulaiDate && !Number.isNaN(mulaiDate.getTime()) && nowMs < mulaiDate.getTime()) {
+      aktif = 0;
+    }
+    if (berakhirDate && !Number.isNaN(berakhirDate.getTime()) && nowMs > berakhirDate.getTime()) {
+      aktif = 0;
     }
 
     if (!nama_diskon) return NextResponse.json({ error: 'nama_diskon required' }, { status: 422 });

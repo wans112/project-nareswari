@@ -1,6 +1,6 @@
 import React from 'react'
 import { headers } from 'next/headers'
-import DetailProduk from '@/components/produk/DetailProduk'
+import DetailProduk from '@/components/client/DetailProduk'
 
 function slugify(text = '') {
   return String(text)

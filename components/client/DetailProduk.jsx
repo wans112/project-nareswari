@@ -1,14 +1,27 @@
 "use client"
 
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation';
+import Image from 'next/image'
+import { ArrowLeft, ChevronLeft, ChevronRight, CreditCard, FileText, ImageOff, MapPin, ShoppingBag, X } from 'lucide-react';
+
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import Image from 'next/image'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 // lightbox will use a custom overlay instead of Dialog
 
 export default function DetailProduk({ id, product, onOrder }) {
+  const router = useRouter();
   const [prod, setProd] = useState(product || null);
   const [media, setMedia] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,6 +29,9 @@ export default function DetailProduk({ id, product, onOrder }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [allBenefits, setAllBenefits] = useState([]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [showCashInstructions, setShowCashInstructions] = useState(false);
+  const locationHref = 'https://maps.app.goo.gl/ZeaUAk1S4Xs8QYyw9';
 
   useEffect(() => {
     if (!prod && id) {
@@ -91,8 +107,33 @@ export default function DetailProduk({ id, product, onOrder }) {
 
   const price = prod.harga ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(prod.harga) : 'Hubungi kami';
 
+  const handleOrderClick = () => {
+    setShowCashInstructions(false);
+    setPaymentDialogOpen(true);
+  };
+
+  const handleTransferOption = () => {
+    setPaymentDialogOpen(false);
+    router.push('/order');
+  };
+
+  const handleCashOption = () => {
+    setShowCashInstructions(true);
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 py-8 px-4">
+      <div className="max-w-4xl mx-auto mb-4">
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Kembali
+        </Button>
+      </div>
       <Card className="max-w-4xl mx-auto shadow-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black">
         <CardHeader className="pb-6">
           <div className="flex flex-col lg:flex-row items-start gap-6">
@@ -112,9 +153,7 @@ export default function DetailProduk({ id, product, onOrder }) {
                 ) : (
                   <div className="text-center text-gray-500 dark:text-gray-400">
                     <div className="w-16 h-16 mx-auto mb-2 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
-                      </svg>
+                      <ImageOff className="w-8 h-8" />
                     </div>
                     <p className="text-sm">No image</p>
                   </div>
@@ -203,9 +242,7 @@ export default function DetailProduk({ id, product, onOrder }) {
               ) : (
                 <div className="text-center py-8 bg-neutral-50 dark:bg-neutral-900/40 rounded-lg border border-neutral-200 dark:border-neutral-800">
                   <div className="w-12 h-12 mx-auto mb-3 bg-neutral-200 dark:bg-neutral-700 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                    <FileText className="w-6 h-6 text-gray-400" />
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Tidak ada benefit terdaftar</p>
                 </div>
@@ -215,20 +252,55 @@ export default function DetailProduk({ id, product, onOrder }) {
         </CardContent>
         
         <CardFooter className="px-6 pt-4 bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
-          <div className="flex items-center justify-end w-full">
+          <div className="flex items-center justify-end w-full text-white">
             <Button 
               size="lg" 
-              onClick={() => onOrder ? onOrder(prod) : alert('Order: ' + prod.nama_paket)}
-              className="bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-lg hover:shadow-xl transition-all duration-300 px-8"
+              onClick={() => {
+                if (onOrder) {
+                  onOrder(prod);
+                  return;
+                }
+                handleOrderClick();
+              }}
+              className="over:bg-neutral-800 shadow-lg hover:shadow-xl transition-all duration-300 px-8"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10m0 0V6a2 2 0 00-2-2H9a2 2 0 00-2 2v2m0 0v8a2 2 0 002 2h6a2 2 0 002-2V8M9 12h6" />
-              </svg>
+              <ShoppingBag className="w-4 h-4 mr-2 text-white" />
               Pesan Sekarang
             </Button>
           </div>
         </CardFooter>
       </Card>
+
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Pilih metode pembayaran</DialogTitle>
+              <DialogDescription>Pilih metode transaksi yang paling nyaman bagi Anda.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <Button className="justify-start gap-3" onClick={handleTransferOption}>
+                <CreditCard className="w-4 h-4" />
+                Transfer / DP
+              </Button>
+              <Button variant="outline" className="justify-start gap-3" onClick={handleCashOption}>
+                <MapPin className="w-4 h-4" />
+                Bayar Cash di Lokasi
+              </Button>
+              {showCashInstructions && (
+                <Alert>
+                  <AlertTitle>Bayar langsung di lokasi</AlertTitle>
+                  <AlertDescription>
+                    Silakan datang ke studio kami dan lakukan pembayaran secara tunai. Anda dapat membuka lokasi melalui{' '}
+                    <a href={locationHref} target="_blank" rel="noreferrer" className="underline font-medium">Google Maps</a>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setPaymentDialogOpen(false)}>Tutup</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Custom full-screen overlay preview (no Dialog) */}
         {lightboxOpen && (
@@ -247,10 +319,10 @@ export default function DetailProduk({ id, product, onOrder }) {
             <div className="relative max-w-6xl w-full max-h-[90vh] p-4" onClick={(e) => e.stopPropagation()}>
               <button
                 aria-label="Close preview"
-                className="absolute top-4 right-4 z-50 text-white bg-black/50 rounded-full p-3 w-10 h-10 flex items-center justify-center text-lg"
+                className="absolute top-4 right-4 z-50 text-white bg-black/50 rounded-full p-3 w-10 h-10 flex items-center justify-center"
                 onClick={() => setLightboxOpen(false)}
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
 
               <div className="relative w-full h-[80vh] bg-black overflow-hidden rounded-lg">
@@ -275,17 +347,17 @@ export default function DetailProduk({ id, product, onOrder }) {
                 <>
                   <button
                     aria-label="Previous"
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center text-2xl"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center"
                     onClick={() => setActiveIdx(idx => Math.max(0, idx - 1))}
                   >
-                    ‹
+                    <ChevronLeft className="w-6 h-6" />
                   </button>
                   <button
                     aria-label="Next"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center text-2xl"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center"
                     onClick={() => setActiveIdx(idx => Math.min(media.length - 1, idx + 1))}
                   >
-                    ›
+                    <ChevronRight className="w-6 h-6" />
                   </button>
                 </>
               )}

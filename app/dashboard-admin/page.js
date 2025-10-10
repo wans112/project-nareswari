@@ -1,13 +1,21 @@
 "use client";
 
 import SidebarAndNavbar from "@/components/ui/SidebarAndNavbar";
+import StatistikAdmin from "@/components/admin/Statistik";
 import ProdukAdmin from "@/components/admin/Produk";
 import ManajamenKategoriAndBenefit from "@/components/admin/ManajamenKategoriAndBenefit";
-import { Package, Settings2, TicketPercent } from "lucide-react";
+import { BarChart3, MessagesSquare, Package, Settings2, TicketPercent } from "lucide-react";
 import Diskon from "@/components/admin/Diskon";
+import ReviewAdmin from "@/components/admin/Review";
 
 export default function Page() {
     const menuItems = [
+        {
+            id: "statistik",
+            label: "Statistik",
+            icon: BarChart3,
+            component: <StatistikAdmin />,
+        },
         {
             id: "produk",
             label: "Produk",
@@ -25,6 +33,12 @@ export default function Page() {
             label: "Diskon",
             icon: TicketPercent,
             component: <Diskon />,
+        },
+        {
+            id: "review",
+            label: "Review",
+            icon: MessagesSquare,
+            component: <ReviewAdmin />,
         }
     ];
 

@@ -1,13 +1,53 @@
 import { NextResponse } from 'next/server';
 import { init } from '@/lib/db';
 
-function ensureCategoryId(db, { kategori_produk_id, nama_kategori, sub_kategori }) {
+function normalizeKategoriCode(code, nama, sub) {
+	const base = code ? String(code).trim() : '';
+	let candidate = base || [nama, sub].filter(Boolean).join(' ');
+	candidate = candidate || nama || 'KATEGORI';
+	candidate = String(candidate || '').trim();
+	const cleaned = candidate
+		.toUpperCase()
+		.normalize('NFKD')
+		.replace(/[^A-Z0-9]+/g, '_')
+		.replace(/_+/g, '_')
+		.replace(/^_|_$/g, '');
+	return cleaned || 'KATEGORI';
+}
+
+function normalizeKategoriDescription(desc, nama, sub) {
+	const base = desc ? String(desc).trim() : '';
+	if (base) return base;
+	const joined = [nama, sub].filter(Boolean).join(' — ');
+	return joined || (nama || 'Kategori');
+}
+
+function getInsertId(info) {
+	return info.lastInsertROWID || info.lastInsertRowid || info.lastInsertId;
+}
+
+function ensureCategoryId(db, { kategori_produk_id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori }) {
 	if (kategori_produk_id) return kategori_produk_id;
-	if (!nama_kategori) throw new Error('nama_kategori required');
-	const sel = db.prepare('SELECT id FROM kategori_produk WHERE nama_kategori = ? AND (sub_kategori IS ? OR sub_kategori = ?)').get(nama_kategori, sub_kategori ?? null, sub_kategori ?? null);
-	if (sel) return sel.id;
-	const ins = db.prepare('INSERT INTO kategori_produk (nama_kategori, sub_kategori) VALUES (?, ?)').run(nama_kategori, sub_kategori ?? null);
-	return ins.lastInsertROWID || ins.lastInsertRowid || ins.lastInsertId;
+	const nama = nama_kategori ? String(nama_kategori).trim() : '';
+	if (!nama) throw new Error('nama_kategori required');
+	const sub = sub_kategori ? String(sub_kategori).trim() : '';
+	const subValue = sub || null;
+	const code = normalizeKategoriCode(code_kategori, nama, subValue);
+	const description = normalizeKategoriDescription(deskripsi_kategori, nama, subValue);
+
+	const byCode = db.prepare('SELECT id FROM kategori_produk WHERE lower(code_kategori) = lower(?)').get(code);
+	if (byCode) return byCode.id;
+
+	const sel = db.prepare('SELECT id, code_kategori, deskripsi_kategori FROM kategori_produk WHERE nama_kategori = ? AND (sub_kategori IS ? OR sub_kategori = ?)').get(nama, subValue, subValue);
+	if (sel) {
+		if (sel.code_kategori !== code || sel.deskripsi_kategori !== description) {
+			db.prepare('UPDATE kategori_produk SET code_kategori = ?, deskripsi_kategori = ? WHERE id = ?').run(code, description, sel.id);
+		}
+		return sel.id;
+	}
+
+	const info = db.prepare('INSERT INTO kategori_produk (nama_kategori, sub_kategori, code_kategori, deskripsi_kategori) VALUES (?, ?, ?, ?)').run(nama, subValue, code, description);
+	return getInsertId(info);
 }
 
 function ensureDefaultKategoriBenefitId(db) {
@@ -44,7 +84,7 @@ export async function GET(req) {
 		const meta = url.searchParams.get('meta');
 
 		if (meta) {
-			const categories = db.prepare('SELECT id, nama_kategori, sub_kategori FROM kategori_produk ORDER BY nama_kategori, sub_kategori').all();
+			const categories = db.prepare('SELECT id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori FROM kategori_produk ORDER BY nama_kategori, sub_kategori').all();
 			// include kategori_benefit name so frontend can build kategori select
 			const benefits = db.prepare(`
 				SELECT b.id, b.benefit, kb.nama_kategori
@@ -57,7 +97,7 @@ export async function GET(req) {
 
 		if (id) {
 			const row = db.prepare(
-				`SELECT p.*, kp.nama_kategori, kp.sub_kategori
+				`SELECT p.*, kp.nama_kategori, kp.sub_kategori, kp.code_kategori, kp.deskripsi_kategori
 				 FROM produk p JOIN kategori_produk kp ON kp.id = p.kategori_produk_id
 				 WHERE p.id = ?`
 			).get(id);
@@ -68,7 +108,7 @@ export async function GET(req) {
 		}
 
 		const rows = db.prepare(
-			`SELECT p.*, kp.nama_kategori, kp.sub_kategori, group_concat(b.benefit) AS benefits
+			`SELECT p.*, kp.nama_kategori, kp.sub_kategori, kp.code_kategori, kp.deskripsi_kategori, group_concat(b.benefit) AS benefits
 			 FROM produk p JOIN kategori_produk kp ON kp.id = p.kategori_produk_id
 			 LEFT JOIN produk_benefit pb ON pb.produk_id = p.id
 			 LEFT JOIN benefit b ON b.id = pb.benefit_id
@@ -86,10 +126,10 @@ export async function POST(req) {
 	try {
 		const db = await init();
 		const body = await req.json();
-	const { nama_paket, harga = null, kategori_produk_id, nama_kategori, sub_kategori = null, benefits = [], media_ids = [] } = body;
+	const { nama_paket, harga = null, kategori_produk_id, nama_kategori, sub_kategori = null, code_kategori, deskripsi_kategori, benefits = [], media_ids = [] } = body;
 		if (!nama_paket) return NextResponse.json({ error: 'nama_paket required' }, { status: 422 });
 
-		const catId = ensureCategoryId(db, { kategori_produk_id, nama_kategori, sub_kategori });
+		const catId = ensureCategoryId(db, { kategori_produk_id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori });
 		const insProd = db.prepare('INSERT INTO produk (kategori_produk_id, nama_paket, harga) VALUES (?, ?, ?)');
 		const insPB = db.prepare('INSERT OR IGNORE INTO produk_benefit (produk_id, benefit_id) VALUES (?, ?)');
 		const tx = db.transaction((kategoriId, payload, benefitIds) => {
@@ -125,7 +165,7 @@ export async function PUT(req) {
 		if (!id) return NextResponse.json({ error: 'id query required' }, { status: 422 });
 
 		const body = await req.json();
-	const { nama_paket, harga, kategori_produk_id, nama_kategori, sub_kategori, benefits, media_ids = [], removed_media_ids = [] } = body;
+	const { nama_paket, harga, kategori_produk_id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori, benefits, media_ids = [], removed_media_ids = [] } = body;
 
 		if (nama_paket !== undefined || harga !== undefined || kategori_produk_id !== undefined || nama_kategori !== undefined) {
 			const parts = [];
@@ -133,7 +173,7 @@ export async function PUT(req) {
 			if (nama_paket !== undefined) { parts.push('nama_paket = ?'); params.push(nama_paket); }
 			if (harga !== undefined) { parts.push('harga = ?'); params.push(harga); }
 			if (kategori_produk_id !== undefined || nama_kategori !== undefined) {
-				const catId = ensureCategoryId(db, { kategori_produk_id, nama_kategori, sub_kategori: sub_kategori ?? null });
+				const catId = ensureCategoryId(db, { kategori_produk_id, nama_kategori, sub_kategori: sub_kategori ?? null, code_kategori, deskripsi_kategori });
 				parts.push('kategori_produk_id = ?'); params.push(catId);
 			}
 			params.push(id);

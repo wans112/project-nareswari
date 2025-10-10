@@ -12,6 +12,19 @@ export async function POST(req) {
     const db = await init();
     const body = await req.json();
     const path = body.path ? String(body.path) : '/';
+    // normalize path (strip querystring if accidentally provided)
+    const normalizedPath = path.split('?')[0];
+
+    // Do not track admin routes or dashboard-admin (including subpaths)
+    if (
+      normalizedPath === '/admin' ||
+      normalizedPath.startsWith('/admin/') ||
+      normalizedPath === '/dashboard-admin' ||
+      normalizedPath.startsWith('/dashboard-admin/')
+    ) {
+      // 204 No Content — intentionally not tracked
+      return new NextResponse(null, { status: 204 });
+    }
     const hostname = body.hostname ? String(body.hostname) : null;
     const referrer = body.referrer ? String(body.referrer) : null;
     const userAgent = body.userAgent ? String(body.userAgent) : (req.headers.get('user-agent') || null);

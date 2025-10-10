@@ -1,4 +1,5 @@
 import "./globals.css";
+import 'antd/dist/reset.css';
 import '@ant-design/v5-patch-for-react-19';
 import Tracker from '@/components/microproses/Tracker';
 import DiskonRefresh from '@/components/microproses/DiskonRefresh';

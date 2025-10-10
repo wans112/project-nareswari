@@ -101,8 +101,10 @@ try {
 
 		CREATE TABLE IF NOT EXISTS kategori_produk (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			code_kategori TEXT NOT NULL,
 			nama_kategori TEXT NOT NULL,
 			sub_kategori TEXT,
+			deskripsi_kategori TEXT NOT NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 
@@ -155,6 +157,19 @@ try {
 
 		CREATE INDEX IF NOT EXISTS idx_diskon_produk ON diskon(produk_id);
 
+		CREATE TABLE IF NOT EXISTS reviews (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			nama TEXT NOT NULL,
+			rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+			isi TEXT NOT NULL,
+			href TEXT,
+			sumber TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_unique ON reviews(nama, isi);
+		CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating);
+
 		CREATE TABLE IF NOT EXISTS page_views (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			path TEXT NOT NULL,
@@ -180,27 +195,27 @@ try {
 
 // Seed kategori_produk (idempotent)
 try {
-	// ensure uniqueness to avoid duplicate seeds
-	db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_kategori_unique ON kategori_produk(nama_kategori, sub_kategori);');
+	// ensure uniqueness to avoid duplicate seeds; include new columns in uniqueness so seeds are stable
+	db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_kategori_unique ON kategori_produk(nama_kategori, sub_kategori, code_kategori);');
 
 	const categories = [
-		{ nama: 'Pernikahan', sub: 'Rumah' },
-		{ nama: 'Pernikahan', sub: 'Gedung' },
-		{ nama: 'Akad', sub: null },
-		{ nama: 'Prewedding', sub: null },
-		{ nama: 'Wedding', sub: null },
-		{ nama: 'Khitan/Rasul', sub: null },
-		{ nama: 'Makeup & Hairstyling', sub: null },
-		{ nama: 'Sewa Kebaya & Busana', sub: null },
+		{ nama: 'Pernikahan', sub: 'Rumah', code: 'pernikahan', desc: 'Paket pernikahan untuk rumah' },
+		{ nama: 'Pernikahan', sub: 'Gedung', code: 'pernikahan', desc: 'Paket pernikahan untuk gedung' },
+		{ nama: 'Akad', sub: null, code: 'akad', desc: 'Paket akad nikah' },
+		{ nama: 'Prewedding', sub: null, code: 'prewedding', desc: 'Paket foto prewedding' },
+		{ nama: 'Wedding', sub: null, code: 'wedding', desc: 'Paket wedding umum' },
+		{ nama: 'Khitan/Rasul', sub: null, code: 'khitan', desc: 'Paket khitan/rasul' },
+		{ nama: 'Makeup & Hairstyling', sub: null, code: 'makeup', desc: 'Makeup dan hairstyling' },
+		{ nama: 'Sewa Kebaya & Busana', sub: null, code: 'sewa', desc: 'Sewa kebaya dan busana' },
 	];
 
-	const insert = db.prepare('INSERT OR IGNORE INTO kategori_produk (nama_kategori, sub_kategori) VALUES (?, ?)');
+	const insert = db.prepare('INSERT OR IGNORE INTO kategori_produk (nama_kategori, sub_kategori, code_kategori, deskripsi_kategori) VALUES (?, ?, ?, ?)');
 	const insertMany = db.transaction((items) => {
-		for (const it of items) insert.run(it.nama, it.sub);
+		for (const it of items) insert.run(it.nama, it.sub, it.code, it.desc);
 	});
 
 	insertMany(categories);
-	console.log('Seeded kategori_produk (idempotent)');
+	console.log('Seeded kategori_produk');
 } catch (err) {
 	console.warn('Seeding kategori_produk failed:', err.message);
 }
@@ -219,9 +234,32 @@ try {
 		for (const it of items) insKb.run(it.nama);
 	});
 	insManyKb(benefitCategories);
-	console.log('Seeded kategori_benefit (idempotent)');
+	console.log('Seeded kategori_benefit ');
 } catch (err) {
 	console.warn('Seeding kategori_benefit failed:', err.message);
+}
+
+// Seed reviews (idempotent)
+try {
+	const reviewSeed = [
+		{ nama: 'Chica Rohaetun', rating: 5, isi: 'Suka banget sama pelayananya orang-orangnya juga ramah, hasil make up nya bagus bikin pangling, semoga makin sukses yah kakk', href: 'https://maps.app.goo.gl/ZeaUAk1S4Xs8QYyw9', sumber: 'Google Maps' },
+		{ nama: 'Budi Santoso', rating: 4, isi: 'Tim profesional dan ramah - koordinasi mudah. Beberapa detail minor, tapi keseluruhan sangat baik.', href: null, sumber: 'Testimonial' },
+		{ nama: 'Ayu Lestari', rating: 5, isi: 'Dekorasi sesuai tema, fotografer juga merekomendasikan tata pencahayaan. Sangat puas!', href: null, sumber: 'Testimonial' },
+		{ nama: 'Rudi Wijaya', rating: 4, isi: 'Hasil foto preweddingnya luar biasa, lokasi dan stylingnya pas. Timnya juga sangat profesional.', href: null, sumber: 'Testimonial' },
+		{ nama: 'Dewi Kartika', rating: 5, isi: 'Make up natural dan tahan lama, persis seperti yang saya inginkan. Timnya sangat perhatian dan detail.', href: null, sumber: 'Testimonial' },
+		{ nama: 'Ahmad Maulana', rating: 4, isi: 'Paket lengkap dengan harga bersaing. Beberapa penyesuaian di hari H, tapi hasil akhirnya memuaskan.', href: null, sumber: 'Testimonial' },
+		{ nama: 'Lina Marlina', rating: 5, isi: 'Sangat direkomendasikan untuk dekorasi pernikahan. Timnya kreatif dan sangat membantu dalam proses perencanaan.', href: null, sumber: 'Testimonial' },
+	];
+	const insReview = db.prepare('INSERT OR IGNORE INTO reviews (nama, rating, isi, href, sumber) VALUES (?, ?, ?, ?, ?)');
+	const batchReview = db.transaction((items) => {
+		for (const item of items) {
+			insReview.run(item.nama, item.rating, item.isi, item.href, item.sumber);
+		}
+	});
+	batchReview(reviewSeed);
+	console.log('Seeded reviews');
+} catch (err) {
+	console.warn('Seeding reviews failed:', err.message);
 }
 
 // Vacuum + analyze to finalize

@@ -1,13 +1,23 @@
 "use client"
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from "react";
+
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "../ui/alert";
 import { Skeleton } from "../ui/skeleton";
-
-import { useEffect, useMemo, useState } from "react";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "../ui/select";
 
 const slugify = (text = '') =>
   String(text)
@@ -25,13 +35,16 @@ const formatTitleFromSlug = (slug = '') =>
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const initialPackages = [];
-
 export default function ListProduk({ category }) {
+  const router = useRouter();
   const categorySlug = useMemo(() => slugify(category || ''), [category]);
-  const [packages, setPackages] = useState(initialPackages);
+  const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('all');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -46,23 +59,13 @@ export default function ListProduk({ category }) {
         const filtered = Array.isArray(data)
           ? data.filter(p => {
               const itemCategory = slugify(p?.nama_kategori || '');
-              return categorySlug ? itemCategory === categorySlug : Boolean(itemCategory);
+              const itemSub = slugify(p?.sub_kategori || '');
+              if (!categorySlug) return Boolean(itemCategory || itemSub);
+              return categorySlug === itemCategory || (!!itemSub && categorySlug === itemSub);
             })
           : [];
 
-        const mapped = filtered.map(p => {
-          const itemCategorySlug = slugify(p?.nama_kategori || categorySlug || 'produk');
-          const productSlug = slugify(p?.nama_paket || p?.title || 'paket');
-          return {
-            id: p.id,
-            title: p.nama_paket || 'Paket',
-            price: p.harga ? `Rp${Number(p.harga).toLocaleString('id-ID')}` : 'Hubungi kami',
-            features: Array.isArray(p.benefits) ? p.benefits : [],
-            href: `/${itemCategorySlug}/${productSlug}`,
-          };
-        });
-
-        setPackages(mapped);
+        setAllProducts(filtered);
         setError(null);
       } catch (err) {
         setError(err.message || 'Error loading packages');
@@ -74,6 +77,64 @@ export default function ListProduk({ category }) {
     return () => { mounted = false; };
   }, [categorySlug]);
 
+  const subcategoryOptions = useMemo(() => {
+    if (!Array.isArray(allProducts)) return [];
+    const map = new Map();
+    for (const item of allProducts) {
+      const label = item?.sub_kategori || item?.nama_kategori || 'Tanpa Subkategori';
+      const value = slugify(item?.sub_kategori || item?.nama_kategori || '');
+      if (!value) continue;
+      if (!map.has(value)) map.set(value, label);
+    }
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [allProducts]);
+
+  const filteredProducts = useMemo(() => {
+    const byCategory = Array.isArray(allProducts) ? allProducts : [];
+    const min = priceMin ? Number(priceMin) : null;
+    const max = priceMax ? Number(priceMax) : null;
+    return byCategory.filter(item => {
+      if (!item) return false;
+      const name = String(item?.nama_paket || '').toLowerCase();
+      if (searchTerm && !name.includes(searchTerm.toLowerCase())) return false;
+
+      if (selectedSubcategory !== 'all') {
+        const subValue = slugify(item?.sub_kategori || item?.nama_kategori || '');
+        if (!subValue || subValue !== selectedSubcategory) return false;
+      }
+
+      const priceValue = Number(item?.harga ?? NaN);
+      if (min !== null) {
+        if (Number.isNaN(priceValue) || priceValue < min) return false;
+      }
+      if (max !== null) {
+        if (Number.isNaN(priceValue) || priceValue > max) return false;
+      }
+      return true;
+    });
+  }, [allProducts, searchTerm, selectedSubcategory, priceMin, priceMax]);
+
+  const packages = useMemo(() => {
+    return filteredProducts.map(p => {
+      const itemCategorySlug = slugify(p?.nama_kategori || categorySlug || 'produk');
+      const productSlug = slugify(p?.nama_paket || p?.title || 'paket');
+      return {
+        id: p.id,
+        title: p.nama_paket || 'Paket',
+        price: p.harga ? `Rp${Number(p.harga).toLocaleString('id-ID')}` : 'Hubungi kami',
+        features: Array.isArray(p.benefits) ? p.benefits : [],
+        href: `/${itemCategorySlug}/${productSlug}`,
+      };
+    });
+  }, [filteredProducts, categorySlug]);
+
+  const hasActiveFilters = Boolean(
+    searchTerm.trim() ||
+    priceMin.trim() ||
+    priceMax.trim() ||
+    (selectedSubcategory !== 'all')
+  );
+
   const titleText = categorySlug ? `Paket ${formatTitleFromSlug(categorySlug)}` : 'Daftar Paket';
   const subtitleText = categorySlug
     ? `Pilih paket ${formatTitleFromSlug(categorySlug)} — klik kartu untuk melihat detail.`
@@ -82,11 +143,92 @@ export default function ListProduk({ category }) {
   return (
     <section id="pernikahan-list" className="w-full py-12">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="flex items-end justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl font-extrabold">{titleText}</h1>
-            <p className="text-muted-foreground mt-2">{subtitleText}</p>
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+          <div className="flex items-start gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => router.back()}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              Kembali
+            </Button>
+            <div>
+              <h1 className="text-3xl font-extrabold">{titleText}</h1>
+              <p className="text-muted-foreground mt-2">{subtitleText}</p>
+            </div>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-4 mb-8">
+          <div className="w-full md:w-64">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Cari paket</label>
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Cari berdasarkan nama paket"
+            />
+          </div>
+
+          <div className="w-full sm:w-56 md:w-48">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Subkategori</label>
+            <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih subkategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua subkategori</SelectItem>
+                {subcategoryOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-wrap sm:flex-nowrap gap-4 w-full sm:w-auto">
+            <div className="w-full sm:w-36">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Harga minimum</label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder="0"
+                value={priceMin}
+                onChange={(e) => setPriceMin(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-36">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">Harga maksimum</label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder="Tanpa batas"
+                value={priceMax}
+                onChange={(e) => setPriceMax(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedSubcategory('all');
+                setPriceMin('');
+                setPriceMax('');
+              }}
+            >
+              Reset filter
+            </Button>
+          )}
         </div>
 
         {loading ? (
@@ -111,6 +253,15 @@ export default function ListProduk({ category }) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <AlertTitle>Gagal memuat paket</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : packages.length === 0 ? (
+          <Alert className="mb-8">
+            <AlertTitle>Tidak ada paket</AlertTitle>
+            <AlertDescription>
+              {hasActiveFilters
+                ? 'Tidak ditemukan paket yang cocok dengan filter yang dipilih.'
+                : 'Belum ada paket yang tersedia untuk kategori ini.'}
+            </AlertDescription>
           </Alert>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
