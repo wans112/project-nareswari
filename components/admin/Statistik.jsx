@@ -13,11 +13,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Line } from "react-chartjs-2";
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+	Chart as ChartJS,
+	CategoryScale,
+	LinearScale,
+	PointElement,
+	LineElement,
+	Tooltip as ChartJsTooltip,
+	Legend,
+	Filler,
+} from "chart.js";
 import {
 	Table,
 	TableHeader,
@@ -42,13 +48,8 @@ import {
 	Search,
 	TrendingUp,
 } from "lucide-react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from "recharts";
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ChartJsTooltip, Legend, Filler);
 
 const TIMEFRAMES = [
 	{ label: "24 Jam Terakhir", value: "1 day" },
@@ -116,13 +117,6 @@ function formatPathLabel(path) {
 	}
 	return segments.join("/");
 }
-
-const CHART_CONFIG = {
-	views: {
-		label: "Kunjungan",
-		color: "hsl(var(--primary))",
-	},
-};
 
 function SummaryCard({ title, value, description, icon: Icon, loading }) {
 	return (
@@ -211,6 +205,16 @@ export default function StatistikAdmin() {
 		[debouncedQuery, stats.list, stats.recent]
 	);
 
+	const topPagesToDisplay = useMemo(
+		() => stats.topPages.slice(0, 5),
+		[stats.topPages]
+	);
+
+	const recentTableItems = useMemo(
+		() => displayRecent.slice(0, 10),
+		[displayRecent]
+	);
+
 	const totalViews = useMemo(
 		() => stats.topPages.reduce((acc, item) => acc + (Number(item?.views) || 0), 0),
 		[stats.topPages]
@@ -290,6 +294,56 @@ export default function StatistikAdmin() {
 			.sort((a, b) => a.orderStamp - b.orderStamp)
 			.map(({ label, views }) => ({ period: label, views }));
 	}, [stats.recent, timeframe]);
+
+	const lineChartData = useMemo(() => ({
+		labels: chartData.map((item) => item.period),
+		datasets: [
+			{
+				label: "Kunjungan",
+				data: chartData.map((item) => item.views),
+				borderColor: "rgba(59, 130, 246, 1)",
+				backgroundColor: "rgba(59, 130, 246, 0.15)",
+				fill: true,
+				tension: 0.35,
+				pointRadius: 3,
+				pointHoverRadius: 5,
+			},
+		],
+	}), [chartData]);
+
+	const lineChartOptions = useMemo(() => ({
+		responsive: true,
+		maintainAspectRatio: false,
+		interaction: {
+			mode: "index",
+			intersect: false,
+		},
+		plugins: {
+			legend: { display: false },
+			tooltip: {
+				callbacks: {
+					label: (context) => {
+						const value = context.parsed?.y ?? 0;
+						return `${formatNumber(value)} kunjungan`;
+					},
+				},
+			},
+		},
+		scales: {
+			x: {
+				grid: { display: false },
+				ticks: { maxRotation: 0 },
+			},
+			y: {
+				beginAtZero: true,
+				grid: { color: "rgba(148, 163, 184, 0.25)" },
+				ticks: { precision: 0 },
+			},
+		},
+		layout: {
+			padding: { top: 4, right: 8, bottom: 0, left: 0 },
+		},
+	}), []);
 
 	const summaryItems = [
 		{
@@ -389,26 +443,9 @@ export default function StatistikAdmin() {
 					{loading ? (
 						<Skeleton className="h-[240px] w-full" />
 					) : chartData.length ? (
-						<ChartContainer config={CHART_CONFIG} className="h-[260px] w-full">
-							<LineChart data={chartData} margin={{ left: 12, right: 12, top: 10, bottom: 0 }}>
-								<CartesianGrid strokeDasharray="3 3" vertical={false} />
-								<XAxis dataKey="period" tickLine={false} axisLine={false} minTickGap={12} />
-								<YAxis
-									allowDecimals={false}
-									tickLine={false}
-									axisLine={false}
-									width={32}
-								/>
-								<ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-								<Line
-									type="monotone"
-									dataKey="views"
-									stroke="var(--color-views)"
-									strokeWidth={2}
-									dot={{ r: 3 }}
-								/>
-							</LineChart>
-						</ChartContainer>
+						<div className="h-[260px] w-full">
+							<Line data={lineChartData} options={lineChartOptions} />
+						</div>
 					) : (
 						<p className="text-muted-foreground text-sm">Belum ada data untuk ditampilkan sebagai grafik.</p>
 					)}
@@ -445,7 +482,7 @@ export default function StatistikAdmin() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{stats.topPages.map((item) => (
+										{topPagesToDisplay.map((item) => (
 											<TableRow key={item.path}>
 												<TableCell>
 													<div className="flex flex-col leading-tight">
@@ -457,7 +494,7 @@ export default function StatistikAdmin() {
 											</TableRow>
 										))}
 									</TableBody>
-									<TableCaption>Top 50 halaman berdasarkan jumlah kunjungan.</TableCaption>
+									<TableCaption>Top 5 halaman berdasarkan jumlah kunjungan.</TableCaption>
 								</Table>
 							) : (
 								<p className="text-muted-foreground px-1 text-sm">Belum ada data kunjungan untuk periode ini.</p>
@@ -556,7 +593,7 @@ export default function StatistikAdmin() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{displayRecent.map((item) => (
+									{recentTableItems.map((item) => (
 										<TableRow key={item.id}>
 											<TableCell>
 												<div className="flex flex-col leading-tight">
@@ -574,7 +611,7 @@ export default function StatistikAdmin() {
 										</TableRow>
 									))}
 								</TableBody>
-								<TableCaption>Kunjungan terbaru dibatasi 100 entri.</TableCaption>
+								<TableCaption>Kunjungan terbaru dibatasi 10 entri.</TableCaption>
 							</Table>
 						</div>
 					) : (

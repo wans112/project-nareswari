@@ -114,7 +114,7 @@ export default function DetailProduk({ id, product, onOrder }) {
 
   const handleTransferOption = () => {
     setPaymentDialogOpen(false);
-    router.push('/order');
+    router.push(`/order?produk_id=${prod.id}`);
   };
 
   const handleCashOption = () => {
@@ -252,7 +252,7 @@ export default function DetailProduk({ id, product, onOrder }) {
         </CardContent>
         
         <CardFooter className="px-6 pt-4 bg-neutral-50 dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800">
-          <div className="flex items-center justify-end w-full text-white">
+          <div className="flex items-center justify-end w-full">
             <Button 
               size="lg" 
               onClick={() => {
@@ -262,9 +262,9 @@ export default function DetailProduk({ id, product, onOrder }) {
                 }
                 handleOrderClick();
               }}
-              className="over:bg-neutral-800 shadow-lg hover:shadow-xl transition-all duration-300 px-8"
+              className="over:bg-neutral-800 shadow-lg hover:shadow-xl transition-all duration-300 px-8 !text-white"
             >
-              <ShoppingBag className="w-4 h-4 mr-2 text-white" />
+              <ShoppingBag className="w-4 h-4 mr-2" />
               Pesan Sekarang
             </Button>
           </div>
@@ -278,7 +278,7 @@ export default function DetailProduk({ id, product, onOrder }) {
               <DialogDescription>Pilih metode transaksi yang paling nyaman bagi Anda.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4">
-              <Button className="justify-start gap-3" onClick={handleTransferOption}>
+              <Button className="justify-start gap-3 !text-white" onClick={handleTransferOption}>
                 <CreditCard className="w-4 h-4" />
                 Transfer / DP
               </Button>

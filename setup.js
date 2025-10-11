@@ -170,6 +170,23 @@ try {
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_unique ON reviews(nama, isi);
 		CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating);
 
+		CREATE TABLE IF NOT EXISTS booking (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			produk_id INTEGER,
+			nama TEXT NOT NULL,
+			email TEXT NOT NULL,
+			telepon TEXT NOT NULL,
+			tanggal DATE NOT NULL,
+			catatan TEXT,
+			status TEXT DEFAULT 'pending',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (produk_id) REFERENCES produk(id) ON DELETE SET NULL
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_booking_status ON booking(status);
+		CREATE INDEX IF NOT EXISTS idx_booking_tanggal ON booking(tanggal);
+		CREATE INDEX IF NOT EXISTS idx_booking_produk ON booking(produk_id);
+
 		CREATE TABLE IF NOT EXISTS page_views (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			path TEXT NOT NULL,
@@ -188,9 +205,23 @@ try {
 	`;
 
 	db.exec(createSql);
-	console.log('Ensured tables: users, benefit, kategori_produk, produk, produk_benefit, media, diskon (and indexes)');
+	console.log('Ensured tables: users, benefit, kategori_produk, produk, produk_benefit, media, diskon, reviews, booking, page_views (and indexes)');
 } catch (err) {
 	exitWith('Failed to create tables: ' + err.message);
+}
+
+// Add produk_id column to booking table if it doesn't exist (for existing databases)
+try {
+	const tableInfo = db.prepare("PRAGMA table_info(booking)").all();
+	const hasProdukId = tableInfo.some(col => col.name === 'produk_id');
+	
+	if (!hasProdukId) {
+		db.exec('ALTER TABLE booking ADD COLUMN produk_id INTEGER REFERENCES produk(id) ON DELETE SET NULL');
+		db.exec('CREATE INDEX IF NOT EXISTS idx_booking_produk ON booking(produk_id)');
+		console.log('Added produk_id column to booking table');
+	}
+} catch (err) {
+	console.warn('Failed to add produk_id column:', err.message);
 }
 
 // Seed kategori_produk (idempotent)
