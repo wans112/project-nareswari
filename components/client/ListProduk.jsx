@@ -45,6 +45,7 @@ export default function ListProduk({ category }) {
   const [selectedSubcategory, setSelectedSubcategory] = useState('all');
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
+  const [sortBy, setSortBy] = useState('random');
 
   useEffect(() => {
     let mounted = true;
@@ -93,7 +94,7 @@ export default function ListProduk({ category }) {
     const byCategory = Array.isArray(allProducts) ? allProducts : [];
     const min = priceMin ? Number(priceMin) : null;
     const max = priceMax ? Number(priceMax) : null;
-    return byCategory.filter(item => {
+    const filtered = byCategory.filter(item => {
       if (!item) return false;
       const name = String(item?.nama_paket || '').toLowerCase();
       if (searchTerm && !name.includes(searchTerm.toLowerCase())) return false;
@@ -112,7 +113,18 @@ export default function ListProduk({ category }) {
       }
       return true;
     });
-  }, [allProducts, searchTerm, selectedSubcategory, priceMin, priceMax]);
+
+    if (sortBy === 'price-asc') {
+      return filtered.sort((a, b) => (a.harga || 0) - (b.harga || 0));
+    }
+    if (sortBy === 'price-desc') {
+      return filtered.sort((a, b) => (b.harga || 0) - (a.harga || 0));
+    }
+    if (sortBy === 'random') {
+      return filtered.sort(() => Math.random() - 0.5);
+    }
+    return filtered;
+  }, [allProducts, searchTerm, selectedSubcategory, priceMin, priceMax, sortBy]);
 
   const packages = useMemo(() => {
     return filteredProducts.map(p => {
@@ -132,7 +144,8 @@ export default function ListProduk({ category }) {
     searchTerm.trim() ||
     priceMin.trim() ||
     priceMax.trim() ||
-    (selectedSubcategory !== 'all')
+    (selectedSubcategory !== 'all') ||
+    (sortBy !== 'random')
   );
 
   const titleText = categorySlug ? `Paket ${formatTitleFromSlug(categorySlug)}` : 'Daftar Paket';
@@ -190,6 +203,19 @@ export default function ListProduk({ category }) {
             </Select>
           </div>
 
+          <div className="w-full sm:w-56 md:w-48">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Urutkan</label>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger>
+                <SelectValue placeholder="Urutkan berdasarkan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="price-asc">Harga terendah</SelectItem>
+                <SelectItem value="price-desc">Harga tertinggi</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex flex-wrap sm:flex-nowrap gap-4 w-full sm:w-auto">
             <div className="w-full sm:w-36">
               <label className="block text-sm font-medium text-muted-foreground mb-1">Harga minimum</label>
@@ -224,6 +250,7 @@ export default function ListProduk({ category }) {
                 setSelectedSubcategory('all');
                 setPriceMin('');
                 setPriceMax('');
+                setSortBy('random');
               }}
             >
               Reset filter

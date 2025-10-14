@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation';
 import Image from 'next/image'
-import { ArrowLeft, ChevronLeft, ChevronRight, CreditCard, FileText, ImageOff, MapPin, ShoppingBag, X } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, CreditCard, FileText, ImageOff, MapPin, MessageCircle, ShoppingBag, X } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -119,6 +119,10 @@ export default function DetailProduk({ id, product, onOrder }) {
 
   const handleCashOption = () => {
     setShowCashInstructions(true);
+  };
+
+  const handleConsultation = () => {
+    window.open(`https://wa.me/6281234567890?text=Konsultasi untuk produk ${prod.nama_paket}`, '_blank');
   };
 
   return (
@@ -277,8 +281,8 @@ export default function DetailProduk({ id, product, onOrder }) {
               <DialogTitle>Pilih metode pembayaran</DialogTitle>
               <DialogDescription>Pilih metode transaksi yang paling nyaman bagi Anda.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4">
-              <Button className="justify-start gap-3 !text-white" onClick={handleTransferOption}>
+            <div className="grid gap-2">
+              <Button variant="outline" className="justify-start gap-3" onClick={handleTransferOption}>
                 <CreditCard className="w-4 h-4" />
                 Transfer / DP
               </Button>
@@ -296,9 +300,11 @@ export default function DetailProduk({ id, product, onOrder }) {
                 </Alert>
               )}
             </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setPaymentDialogOpen(false)}>Tutup</Button>
-            </DialogFooter>
+            <Separator />
+            <Button className="justify-start gap-3 !text-white" onClick={handleConsultation}>
+              <i className="bi bi-whatsapp"></i>
+              Konsultasi via WhatsApp
+            </Button>
           </DialogContent>
         </Dialog>
 

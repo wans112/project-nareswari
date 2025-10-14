@@ -2,14 +2,13 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, Copy } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +17,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { Separator } from '../ui/separator';
+
+// Helper to format Date to YYYY-MM-DD for backend
+function formatDateISO(d) {
+  if (!d || isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 const initialForm = {
   nama: '',
@@ -47,6 +59,11 @@ export default function OrderForm() {
   const [produkId, setProdukId] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [buktiTransfer, setBuktiTransfer] = useState(null);
+  const [uploadingBukti, setUploadingBukti] = useState(false);
+  const [buktiUploaded, setBuktiUploaded] = useState(false);
+  const [openCalendar, setOpenCalendar] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const produk_id = searchParams.get('produk_id');
@@ -120,6 +137,40 @@ export default function OrderForm() {
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const handleFileChange = (e) => {
+    setBuktiTransfer(e.target.files[0]);
+  };
+
+  const handleUploadBukti = async () => {
+    if (!buktiTransfer || !submittedData?.id) return;
+    setUploadingBukti(true);
+    try {
+      const formData = new FormData();
+      formData.append('bukti_transfer', buktiTransfer);
+      const response = await fetch(`/api/booking?id=${submittedData.id}`, {
+        method: 'PUT',
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBuktiUploaded(true);
+    } catch (err) {
+      alert('Gagal upload bukti: ' + err.message);
+    } finally {
+      setUploadingBukti(false);
+    }
+  };
+
+  const handleCopyRekening = async () => {
+    try {
+      await navigator.clipboard.writeText(bankInstructions.rekening);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      alert('Gagal copy nomor rekening');
+    }
+  };
+
   const resetForm = () => {
     setForm(initialForm);
     setSubmittedData(null);
@@ -180,7 +231,37 @@ export default function OrderForm() {
 
             <div className="space-y-2">
               <Label htmlFor="tanggal">Tanggal Acara</Label>
-              <Input id="tanggal" name="tanggal" type="date" value={form.tanggal} onChange={handleChange} />
+              <Popover open={openCalendar} onOpenChange={setOpenCalendar}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="tanggal"
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !form.tanggal && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.tanggal
+                      ? new Date(form.tanggal).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                      : 'Pilih tanggal'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.tanggal ? new Date(form.tanggal) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        setForm((prev) => ({ ...prev, tanggal: formatDateISO(date) }));
+                        setOpenCalendar(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
               {errors.tanggal && <p className="text-sm text-destructive">{errors.tanggal}</p>}
             </div>
 
@@ -191,6 +272,7 @@ export default function OrderForm() {
 
             <div className="flex items-center gap-3">
               <Button type="submit" className="!text-white" disabled={isSubmitting}>
+                <i class="bi bi-send"></i>
                 {isSubmitting ? 'Mengirim...' : 'Kirim Form'}
               </Button>
               {submittedData && (
@@ -215,11 +297,33 @@ export default function OrderForm() {
             <Alert>
               <AlertTitle className="text-lg font-semibold">Langkah selanjutnya</AlertTitle>
               <AlertDescription>
-                Terima kasih, {submittedData?.nama}. Silakan lakukan pembayaran DP minimal {formattedDp} ke rekening {bankInstructions.bank} {bankInstructions.rekening} a.n. {bankInstructions.nama}. Kirim bukti transfer melalui WhatsApp agar tanggal {submittedData?.tanggal} dapat kami kunci.
+                Terima kasih, {submittedData?.nama}. Silakan lakukan pembayaran DP minimal {formattedDp}. Kirim bukti transfer melalui WhatsApp agar tanggal {submittedData?.tanggal} dapat kami kunci.
+              </AlertDescription>
+            </Alert>
+            <Alert>
+              <AlertTitle className="text-lg font-semibold">Nomor Rekening</AlertTitle>
+              <AlertDescription className="flex items-center justify-between">
+                <span>{bankInstructions.rekening} a.n. {bankInstructions.nama}</span>
+                <Button variant="ghost" size="sm" onClick={handleCopyRekening} className="ml-2">
+                  <Copy className="h-4 w-4" />
+                  {copied ? 'Copied!' : 'Copy'}
+                </Button>
               </AlertDescription>
             </Alert>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="bukti-transfer">Upload Bukti Transfer</Label>
+            <Input id="bukti-transfer" type="file" accept="image/*,application/pdf" onChange={handleFileChange} />
+            {buktiTransfer && <p className="text-sm text-green-600">File dipilih: {buktiTransfer.name}</p>}
+            {buktiTransfer && (
+              <Button onClick={handleUploadBukti} disabled={uploadingBukti || buktiUploaded} className="!text-white mt-3">
+                {uploadingBukti ? 'Uploading...' : buktiUploaded ? 'Bukti Uploaded' : 'Upload Bukti'}
+              </Button>
+            )}
+          </div>
+
+          <Separator />
           <DialogFooter className="flex gap-2">
             <Button
               variant="outline"
@@ -231,7 +335,7 @@ export default function OrderForm() {
             </Button>
             <Button className="!text-white" onClick={handleWhatsapp}>
               <i className="bi bi-whatsapp"></i>
-              Hubungi via WhatsApp
+              Konfirmasi via WhatsApp
             </Button>
           </DialogFooter>
         </DialogContent>

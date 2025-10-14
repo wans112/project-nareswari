@@ -27,6 +27,8 @@ function ensureDir(dir) {
 ensureDir(DB_DIR);
 const MEDIA_DIR = path.join(DB_DIR, 'media');
 ensureDir(MEDIA_DIR);
+const BUKTI_DIR = path.join(DB_DIR, 'bukti_transfer');
+ensureDir(BUKTI_DIR);
 
 // Load better-sqlite3 and open DB
 let Database;
@@ -178,6 +180,7 @@ try {
 			telepon TEXT NOT NULL,
 			tanggal DATE NOT NULL,
 			catatan TEXT,
+			image_path TEXT,
 			status TEXT DEFAULT 'pending',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (produk_id) REFERENCES produk(id) ON DELETE SET NULL
@@ -230,8 +233,8 @@ try {
 	db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_kategori_unique ON kategori_produk(nama_kategori, sub_kategori, code_kategori);');
 
 	const categories = [
-		{ nama: 'Pernikahan', sub: 'Rumah', code: 'pernikahan', desc: 'Paket pernikahan untuk rumah' },
-		{ nama: 'Pernikahan', sub: 'Gedung', code: 'pernikahan', desc: 'Paket pernikahan untuk gedung' },
+		{ nama: 'Pernikahan', sub: 'Rumah', code: 'pernikahan', desc: 'Paket pernikahan' },
+		{ nama: 'Pernikahan', sub: 'Gedung', code: 'pernikahan', desc: 'Paket pernikahan' },
 		{ nama: 'Akad', sub: null, code: 'akad', desc: 'Paket akad nikah' },
 		{ nama: 'Prewedding', sub: null, code: 'prewedding', desc: 'Paket foto prewedding' },
 		{ nama: 'Wedding', sub: null, code: 'wedding', desc: 'Paket wedding umum' },

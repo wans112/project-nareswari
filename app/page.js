@@ -26,28 +26,28 @@ async function loadCategories(db) {
     )
     .all();
 
-  return rows
-    .map((row) => {
-      const nama = row.nama_kategori || "";
-      const sub = row.sub_kategori || "";
-      const label = sub ? `${nama} — ${sub}` : nama || "Kategori";
-      const slugSource = sub || nama;
-      const slug = slugify(slugSource);
-      const groupSlug = slugify(nama);
-      const description = row.deskripsi_kategori || (sub ? `Layanan ${sub}` : `Layanan ${nama}`);
+  const categoryMap = new Map();
 
-      if (!slug) return null;
-      return {
-        id: row.id,
-        label,
-        description,
-        href: `/${slug}`,
-        slug,
-        groupSlug,
-        groupLabel: nama || label,
-      };
-    })
-    .filter(Boolean);
+  rows.forEach((row) => {
+    const nama = row.nama_kategori || "";
+    if (!nama) return;
+
+    const groupSlug = slugify(nama);
+
+    if (!categoryMap.has(groupSlug)) {
+      categoryMap.set(groupSlug, {
+        id: row.id, // Use the first ID encountered for this group
+        label: nama,
+        description: row.deskripsi_kategori,
+        href: `/${groupSlug}`,
+        slug: groupSlug,
+        groupSlug: groupSlug,
+        groupLabel: nama,
+      });
+    }
+  });
+
+  return Array.from(categoryMap.values());
 }
 
 async function loadDiscounts(db) {
