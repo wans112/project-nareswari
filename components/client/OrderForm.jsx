@@ -45,7 +45,7 @@ const bankInstructions = {
   nama: 'Nareswari Event',
 };
 
-const whatsappUrl = 'https://wa.me/6281234567890';
+const whatsappUrl = 'https://wa.me/6287727694239';
 
 const MIN_DP = 1000000;
 
@@ -64,6 +64,8 @@ export default function OrderForm() {
   const [buktiUploaded, setBuktiUploaded] = useState(false);
   const [openCalendar, setOpenCalendar] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [chatbotPort, setChatbotPort] = useState(9843); // default port
+  const [notificationNumbers, setNotificationNumbers] = useState(['6281615515685@c.us']); // default
 
   useEffect(() => {
     const produk_id = searchParams.get('produk_id');
@@ -81,6 +83,19 @@ export default function OrderForm() {
         })
         .catch(() => {});
     }
+
+    // Load chatbot port and notification numbers from config
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(data => {
+        if (data.chatbotPort) {
+          setChatbotPort(data.chatbotPort);
+        }
+        if (data.notificationNumbers && Array.isArray(data.notificationNumbers)) {
+          setNotificationNumbers(data.notificationNumbers);
+        }
+      })
+      .catch(() => {});
   }, [searchParams]);
 
   const formattedDp = useMemo(() => new Intl.NumberFormat('id-ID', {
@@ -126,6 +141,28 @@ export default function OrderForm() {
       }
       setSubmittedData(data);
       setSuccessDialogOpen(true);
+
+      // Send WhatsApp message to notify about new order
+      const whatsappMessage = `Ada bokingan baru nih
+- Nama: ${form.nama}
+- Email: ${form.email}
+- No telp: ${form.telepon}
+- Produk: ${selectedProduct?.nama_paket || 'Tidak diketahui'}
+- Status Pembayaran: Belum Dibayar`;
+      for (const number of notificationNumbers) {
+        try {
+          await fetch(`http://localhost:${chatbotPort}/api/whatsapp/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: number,
+              message: whatsappMessage
+            })
+          });
+        } catch (error) {
+          console.error(`Failed to send WhatsApp to ${number}:`, error);
+        }
+      }
     } catch (err) {
       setErrors({ submit: err.message });
     } finally {
@@ -154,6 +191,28 @@ export default function OrderForm() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setBuktiUploaded(true);
+
+      // Send WhatsApp message to notify about payment proof upload
+      const whatsappMessage = `Bukti transfer diterima nih
+- Nama: ${submittedData.nama}
+- Email: ${submittedData.email}
+- No telp: ${submittedData.telepon}
+- Produk: ${selectedProduct?.nama_paket || 'Tidak diketahui'}
+- Status Pembayaran: Sudah Dibayar`;
+      for (const number of notificationNumbers) {
+        try {
+          await fetch(`http://localhost:${chatbotPort}/api/whatsapp/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: number,
+              message: whatsappMessage
+            })
+          });
+        } catch (error) {
+          console.error(`Failed to send WhatsApp to ${number}:`, error);
+        }
+      }
     } catch (err) {
       alert('Gagal upload bukti: ' + err.message);
     } finally {
@@ -272,7 +331,7 @@ export default function OrderForm() {
 
             <div className="flex items-center gap-3">
               <Button type="submit" className="!text-white" disabled={isSubmitting}>
-                <i class="bi bi-send"></i>
+                <i className="bi bi-send"></i>
                 {isSubmitting ? 'Mengirim...' : 'Kirim Form'}
               </Button>
               {submittedData && (

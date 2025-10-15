@@ -14,7 +14,9 @@ export default function AboutSection() {
             />
           </div>
           <div>
-              <h2 className="text-3xl sm:text-4xl font-extrabold mb-6">Tentang Kami: Cerita di Balik Momen Sempurna Anda</h2>
+            {/* Desktop: show original (long) content on md+ screens */}
+            <div className="hidden md:block">
+              <h2 className="text-3xl sm:text-4xl !font-extrabold mb-6">Tentang Kami: Cerita di Balik Momen Sempurna Anda</h2>
 
                   <p className="text-sm sm:text-lg text-muted-foreground mb-4">
                     Sejak 2015, Nareswari Galeri lahir dari sebuah mimpi: menjadi bagian dari cerita bahagia Anda. Kami menyadari bahwa persiapan sebuah acara istimewa membutuhkan lebih dari sekadar penampilan yang menawan, tetapi juga kemudahan dan ketenangan pikiran. Karena itulah, kami bertransformasi menjadi solusi terpadu untuk Anda.
@@ -36,15 +38,42 @@ export default function AboutSection() {
                 </div>
               </div>
 
-            <div className="flex gap-3">
-              <Button asChild className="hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
-                <a href="#packages">Lihat Layanan</a>
-              </Button>
-              <Button asChild variant="outline" className="hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
-                <a href="#contact">Konsultasi</a>
-              </Button>
+              <div className="flex gap-3">
+                <Button asChild className="hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
+                  <a href="#packages">Lihat Layanan</a>
+                </Button>
+                <Button asChild variant="outline" className="hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
+                  <a href="https://wa.me/6287727694239?text=Saya ingin berkonsultasi" target="_blank" rel="noopener noreferrer">Konsultasi</a>
+                </Button>
+              </div>
             </div>
 
+            {/* Mobile: show concise content on small screens */}
+            <div className="block md:hidden">
+              <h2 className="text-3xl sm:text-4xl !font-extrabold mb-6">Tentang Kami: Cerita di Balik Momen Sempurna Anda</h2>
+
+              <p className="text-sm sm:text-lg text-muted-foreground mb-4">
+                Sejak 2015 kami membantu mewujudkan acara istimewa Anda dengan solusi one-stop: rias, busana, dan dekorasi — dirancang dengan perhatian pada detail dan kemudahan pelanggan.
+              </p>
+
+              <div className="space-y-3 text-sm text-muted-foreground mb-4">
+                <div>
+                  <strong>Layanan Utama:</strong> Jasa MUA & sewa busana, serta paket perencanaan & dekorasi.
+                </div>
+                <div>
+                  <strong>Dokumentasi:</strong> Fotografi & videografi profesional untuk mengabadikan momen Anda.
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button asChild className="hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
+                  <a href="#packages">Lihat Layanan</a>
+                </Button>
+                <Button asChild variant="outline" className="hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
+                  <a href="https://wa.me/6287727694239?text=Saya ingin berkonsultasi" target="_blank" rel="noopener noreferrer">Konsultasi</a>
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

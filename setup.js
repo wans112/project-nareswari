@@ -30,6 +30,21 @@ ensureDir(MEDIA_DIR);
 const BUKTI_DIR = path.join(DB_DIR, 'bukti_transfer');
 ensureDir(BUKTI_DIR);
 
+// Ensure config directory and create config.json if not exists
+const CONFIG_DIR = path.join(__dirname, 'config');
+ensureDir(CONFIG_DIR);
+const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+if (!fs.existsSync(CONFIG_FILE)) {
+	try {
+		fs.writeFileSync(CONFIG_FILE, JSON.stringify({}, null, 2));
+		console.log('Created config.json:', CONFIG_FILE);
+	} catch (err) {
+		console.warn('Failed to create config.json:', err.message);
+	}
+} else {
+	console.log('config.json exists:', CONFIG_FILE);
+}
+
 // Load better-sqlite3 and open DB
 let Database;
 try {

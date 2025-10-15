@@ -7,6 +7,7 @@ import ManajamenKategoriAndBenefit from "@/components/admin/ManajamenKategoriAnd
 import { BarChart3, MessagesSquare, Package, Settings2, TicketPercent } from "lucide-react";
 import Diskon from "@/components/admin/Diskon";
 import ReviewAdmin from "@/components/admin/Review";
+import NotifikasiNomor from "@/components/admin/NotifikasiNomor";
 
 export default function Page() {
     const menuItems = [
@@ -39,6 +40,12 @@ export default function Page() {
             label: "Review",
             icon: MessagesSquare,
             component: <ReviewAdmin />,
+        },
+        {
+            id: "notifikasinomor",
+            label: "Notifikasi Nomor",
+            icon: MessagesSquare,
+            component: <NotifikasiNomor />,
         }
     ];
 

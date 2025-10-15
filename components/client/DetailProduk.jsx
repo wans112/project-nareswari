@@ -122,7 +122,7 @@ export default function DetailProduk({ id, product, onOrder }) {
   };
 
   const handleConsultation = () => {
-    window.open(`https://wa.me/6281234567890?text=Konsultasi untuk produk ${prod.nama_paket}`, '_blank');
+    window.open(`https://wa.me/6287727694239?text=Saya ingin berlonsultasi mengenai produk ${prod.nama_paket}`, '_blank');
   };
 
   return (

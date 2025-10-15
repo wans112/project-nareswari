@@ -20,7 +20,9 @@ export async function POST(req) {
       normalizedPath === '/admin' ||
       normalizedPath.startsWith('/admin/') ||
       normalizedPath === '/dashboard-admin' ||
-      normalizedPath.startsWith('/dashboard-admin/')
+      normalizedPath.startsWith('/dashboard-admin/') ||
+      normalizedPath === '/order' ||
+      normalizedPath.startsWith('/order/')
     ) {
       // 204 No Content — intentionally not tracked
       return new NextResponse(null, { status: 204 });

@@ -127,7 +127,7 @@ export default async function Home() {
   links.push({ href: "#reviews", label: "Ulasan" });
   links.push({ href: "#about", label: "Tentang Kami" });
 
-  const cta = { href: "#contact", label: "Hubungi" };
+  const cta = { href: "#footer", label: "Hubungi" };
 
   return (
     <main className="h-screen overflow-y-auto snap-y snap-mandatory scroll-smooth bg-black text-white flex flex-col items-center">

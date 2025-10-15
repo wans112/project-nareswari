@@ -130,7 +130,7 @@ export default function ReviewSection() {
 		// Section background is white to invert from the dark site theme.
 		<section id="reviews" className="w-full overflow-hidden min-h-screen snap-start flex items-center justify-center">
 			<div className="max-w-7xl mx-auto px-6 py-12">
-				<h2 className="text-3xl sm:text-4xl font-extrabold mb-6 text-center">
+				<h2 className="text-3xl sm:text-4xl !font-extrabold mb-6 text-center">
 					Ulasan Pelanggan
 				</h2>
 

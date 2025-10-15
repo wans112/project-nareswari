@@ -53,7 +53,7 @@ export default function DiskonSection({ items = [] }) {
       <div className="max-w-7xl mx-auto px-6 py-16 w-full space-y-8">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold">Diskon Terbaru</h2>
+            <h2 className="text-3xl sm:text-4xl !font-extrabold">Diskon Terbaru</h2>
             <p className="text-muted-foreground text-sm sm:text-base text-white/70">
               Paket pilihan dengan penawaran terbaik saat ini. Maksimal empat promo ditampilkan.
             </p>

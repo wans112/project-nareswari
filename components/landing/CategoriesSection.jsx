@@ -16,7 +16,7 @@ export default function CategoriesSection({ initialCategories = [] }) {
   return (
     <section id="packages" className="w-full min-h-screen flex items-center bg-white text-black snap-start">
       <div className="max-w-7xl mx-auto px-6 pt-2 pb-8 w-full">
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-center">Layanan</h2>
+        <h2 className="text-3xl sm:text-4xl !font-extrabold text-center">Layanan</h2>
         {/* Mobile: carousel (visible on screens smaller than sm) */}
         <div className="mt-6 relative sm:hidden">
           {hasCategories ? (

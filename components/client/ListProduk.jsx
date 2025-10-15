@@ -157,7 +157,7 @@ export default function ListProduk({ category }) {
     <section id="pernikahan-list" className="w-full py-12">
       <div className="max-w-6xl mx-auto px-6">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-          <div className="flex items-start gap-3">
+          <div className="flex flex-col items-start gap-3">
             <Button
               type="button"
               variant="outline"

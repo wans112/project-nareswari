@@ -32,7 +32,7 @@ export default function HeroSection() {
               <a href="#packages">Lihat Layanan</a>
             </Button>
             <Button asChild size="lg" className="bg-transparent border hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
-              <a href="#contact">Hubungi Kami</a>
+              <a href="#footer">Hubungi Kami</a>
             </Button>
           </div>
         </div>

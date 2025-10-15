@@ -1,16 +1,16 @@
 export default function FooterSection() {
   return (
-    <footer className="w-full bg-black text-white min-h-screen flex items-center snap-start">
+    <footer id="footer" className="w-full bg-black text-white min-h-screen flex items-center snap-start">
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           <div>
-            <h3 className="text-lg sm:text-xl font-bold">Nareswari Galeri</h3>
+            <h3 className="text-lg sm:text-xl !font-bold">Nareswari Galeri</h3>
             <p className="text-xs sm:text-sm text-white/80 mt-2">Mewujudkan Momen Bersejarah Anda Menjadi Kenangan Abadi</p>
             <p className="text-xs sm:text-sm text-white/80 mt-3">Khas Make up dari Nareswari: <em>"Make up Soft tapi manglingi"</em></p>
           </div>
 
           <div>
-            <h4 className="text-base sm:text-lg font-semibold mb-2">Layanan</h4>
+            <h4 className="text-base sm:text-lg !font-semibold mb-2">Layanan</h4>
             <ul className="list-disc pl-5 text-xs sm:text-sm text-white/80 mb-4">
               <li>Makeup Artist (MUA) & Hairstylist Profesional</li>
               <li>Sewa Kebaya, Gaun, & Busana</li>
