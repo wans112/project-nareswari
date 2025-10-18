@@ -47,13 +47,11 @@ export default function ManajamenKategoriAndBenefit() {
     form.resetFields();
     if (record) {
       if (type === "kategori") {
-        form.setFieldsValue({ nama_kategori: record.nama_kategori, sub_kategori: record.sub_kategori });
-      } else {
-        if (type === 'benefit') {
-          form.setFieldsValue({ benefit: record.benefit, kategori_benefit_id: record.kategori_benefit_id });
-        } else if (type === 'kategori_benefit') {
-          form.setFieldsValue({ nama_kategori: record.nama_kategori });
-        }
+        form.setFieldsValue({ nama_kategori: record.nama_kategori, sub_kategori: record.sub_kategori, deskripsi_kategori: record.deskripsi_kategori });
+      } else if (type === 'benefit') {
+        form.setFieldsValue({ benefit: record.benefit, kategori_benefit_id: record.kategori_benefit_id });
+      } else if (type === 'kategori_benefit') {
+        formKb.setFieldsValue({ nama_kategori: record.nama_kategori });
       }
     }
     setModalOpen(true);
@@ -259,12 +257,21 @@ export default function ManajamenKategoriAndBenefit() {
         <Form form={form} layout="vertical">
           {modalType === "kategori" ? (
             <>
-              <Form.Item name="nama_kategori" label="Nama Kategori" rules={[{ required: true, message: "Wajib diisi" }]}> <Input /> </Form.Item>
-              <Form.Item name="sub_kategori" label="Sub Kategori"> <Input /> </Form.Item>
+              <Form.Item name="nama_kategori" label="Nama Kategori" rules={[{ required: true, message: "Wajib diisi" }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item name="sub_kategori" label="Sub Kategori">
+                <Input />
+              </Form.Item>
+              <Form.Item name="deskripsi_kategori" label="Deskripsi Kategori">
+                <Input.TextArea rows={3} />
+              </Form.Item>
             </>
           ) : (
             <>
-              <Form.Item name="benefit" label="Nama Benefit" rules={[{ required: true, message: "Wajib diisi" }]}> <Input /> </Form.Item>
+              <Form.Item name="benefit" label="Nama Benefit" rules={[{ required: true, message: "Wajib diisi" }]}>
+                <Input />
+              </Form.Item>
               <Form.Item name="kategori_benefit_id" label="Kategori Benefit">
                 <Input />
               </Form.Item>

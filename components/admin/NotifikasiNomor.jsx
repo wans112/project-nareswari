@@ -109,6 +109,7 @@ export default function NotifikasiNomor() {
       key: 'action',
       render: (_, record) => (
         <Button
+          size="small"
           danger
           icon={<DeleteOutlined />}
           onClick={() => handleRemove(record.whatsappNumber)}
@@ -127,7 +128,7 @@ export default function NotifikasiNomor() {
 
   return (
     <div>
-      <h2>Manajemen Nomor Notifikasi</h2>
+      <h2 style={{ fontWeight: 600, fontSize: 20, marginBottom: 16 }}>Manajemen Nomor Notifikasi</h2>
       <Space style={{ marginBottom: 16 }}>
         <Button
           type="primary"

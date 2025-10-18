@@ -15,6 +15,7 @@ import {
 	Typography,
 	message,
 } from "antd";
+import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 
 const { Text, Title, Link: AntLink } = Typography;
 
@@ -175,7 +176,7 @@ export default function ReviewAdmin() {
 			width: 180,
 			render: (_, record) => (
 				<Space>
-					<Button size="small" onClick={() => handleOpenEdit(record)}>Edit</Button>
+					<Button icon={<EditOutlined />} size="small" onClick={() => handleOpenEdit(record)}>Edit</Button>
 					<Popconfirm
 						title="Hapus review"
 						description={`Hapus review dari ${record.nama}?`}
@@ -184,7 +185,7 @@ export default function ReviewAdmin() {
 						okButtonProps={{ danger: true }}
 						onConfirm={() => handleDelete(record)}
 					>
-						<Button size="small" danger>Hapus</Button>
+						<Button size="small" danger icon={<DeleteOutlined />}>Hapus</Button>
 					</Popconfirm>
 				</Space>
 			),
@@ -193,13 +194,8 @@ export default function ReviewAdmin() {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div>
-					<Title level={4} className="!mb-0">Manajemen Review</Title>
-					<Text type="secondary">Kelola ulasan pelanggan yang tampil di landing page.</Text>
-				</div>
-				<Button type="primary" onClick={handleOpenCreate}>Tambah Review</Button>
-			</div>
+      		<h2 style={{ fontWeight: 600, fontSize: 20, marginBottom: 16 }}>Manajemen Review</h2>
+			<Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>Tambah Review</Button>
 
 			<Table
 				rowKey="id"

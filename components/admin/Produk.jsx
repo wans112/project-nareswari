@@ -319,6 +319,7 @@ export default function ProdukAdmin() {
 
   return (
     <div>
+      <h2 style={{ fontWeight: 600, fontSize: 20, marginBottom: 16 }}>Manajemen Produk</h2>
       <Space style={{ marginBottom: 16 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Tambah Produk</Button>
       </Space>

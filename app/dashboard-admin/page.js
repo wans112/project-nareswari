@@ -4,10 +4,11 @@ import SidebarAndNavbar from "@/components/ui/SidebarAndNavbar";
 import StatistikAdmin from "@/components/admin/Statistik";
 import ProdukAdmin from "@/components/admin/Produk";
 import ManajamenKategoriAndBenefit from "@/components/admin/ManajamenKategoriAndBenefit";
-import { BarChart3, MessagesSquare, Package, Settings2, TicketPercent } from "lucide-react";
+import { BarChart3, MessagesSquare, Package, Settings2, TicketPercent, Calendar, Bell } from "lucide-react";
 import Diskon from "@/components/admin/Diskon";
 import ReviewAdmin from "@/components/admin/Review";
 import NotifikasiNomor from "@/components/admin/NotifikasiNomor";
+import Booking from "@/components/admin/Booking";
 
 export default function Page() {
     const menuItems = [
@@ -16,6 +17,12 @@ export default function Page() {
             label: "Statistik",
             icon: BarChart3,
             component: <StatistikAdmin />,
+        },
+        {
+            id: "booking",
+            label: "Booking",
+            icon: Calendar,
+            component: <Booking />,
         },
         {
             id: "produk",
@@ -44,7 +51,7 @@ export default function Page() {
         {
             id: "notifikasinomor",
             label: "Notifikasi Nomor",
-            icon: MessagesSquare,
+            icon: Bell,
             component: <NotifikasiNomor />,
         }
     ];
