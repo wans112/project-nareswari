@@ -49,9 +49,30 @@ export default function DetailProduk({ id, product, onOrder }) {
     if (!pid) return;
     fetch(`/api/media?produk_id=${encodeURIComponent(pid)}`)
       .then(r => r.json())
-      .then(j => { if (Array.isArray(j)) setMedia(j); })
+      .then(j => {
+        if (!Array.isArray(j)) return;
+        const normalized = j.map(item => ({ ...item, is_cover: Boolean(item.is_cover) }));
+        const coverIndex = normalized.findIndex(item => item.is_cover);
+        if (coverIndex > 0) {
+          const [coverItem] = normalized.splice(coverIndex, 1);
+          normalized.unshift(coverItem);
+        }
+        setMedia(normalized);
+        if (normalized.length > 0) {
+          setActiveIdx(0);
+        }
+      })
       .catch(() => {});
   }, [prod, id]);
+
+  useEffect(() => {
+    if (!prod?.cover_url) return;
+    setMedia(prev => {
+      if (Array.isArray(prev) && prev.length > 0) return prev;
+      return [{ id: `cover-${prod?.id ?? 'temp'}`, url: prod.cover_url, media_path: null, is_cover: true }];
+    });
+    setActiveIdx(0);
+  }, [prod]);
 
   // Fetch all benefits metadata for grouping by kategori
   useEffect(() => {
@@ -126,8 +147,8 @@ export default function DetailProduk({ id, product, onOrder }) {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 py-8 px-4">
-      <div className="max-w-4xl mx-auto mb-4">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 px-4">
+      <div className="max-w-4xl mx-auto mb-2">
         <Button
           type="button"
           variant="outline"
@@ -353,14 +374,14 @@ export default function DetailProduk({ id, product, onOrder }) {
                 <>
                   <button
                     aria-label="Previous"
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 !text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center"
                     onClick={() => setActiveIdx(idx => Math.max(0, idx - 1))}
                   >
                     <ChevronLeft className="w-6 h-6" />
                   </button>
                   <button
                     aria-label="Next"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 !text-white bg-black/40 rounded-full p-3 w-12 h-12 flex items-center justify-center"
                     onClick={() => setActiveIdx(idx => Math.min(media.length - 1, idx + 1))}
                   >
                     <ChevronRight className="w-6 h-6" />

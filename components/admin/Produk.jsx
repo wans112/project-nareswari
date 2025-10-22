@@ -15,6 +15,22 @@ export default function ProdukAdmin() {
   // benefit UI: simple select populated from meta.benefits
   
   const [modalMedia, setModalMedia] = useState([]); // media attached in product modal (objects {id, url, media_path})
+  const [coverSelection, setCoverSelection] = useState(null);
+
+  const mediaKey = (item) => {
+    if (!item) return null;
+    if (item.temp) return `temp-${item.tempId}`;
+    if (item.id != null) return `id-${item.id}`;
+    return null;
+  };
+
+  const applyCoverFlag = (items, key) => {
+    const selectedKey = key || null;
+    return (items || []).map((item) => ({
+      ...item,
+      is_cover: selectedKey ? selectedKey === mediaKey(item) : false,
+    }));
+  };
 
   const benefitOptions = useMemo(
     () => meta.benefits.map(b => ({ label: b.benefit, value: b.id })),
@@ -74,6 +90,7 @@ export default function ProdukAdmin() {
   function openCreate() {
     setEditing(null);
     form.resetFields();
+    setCoverSelection(null);
     setModalMedia([]);
     setOpen(true);
   }
@@ -102,7 +119,11 @@ export default function ProdukAdmin() {
       try {
         const res = await fetch(`/api/media?produk_id=${record.id}`);
         const j = await res.json();
-        setModalMedia(j || []);
+        const normalized = Array.isArray(j) ? j.map(item => ({ ...item, is_cover: Boolean(item.is_cover) })) : [];
+        const currentCover = normalized.find(item => item.is_cover);
+        const key = currentCover ? mediaKey(currentCover) : null;
+        setCoverSelection(key);
+        setModalMedia(applyCoverFlag(normalized, key));
       } catch (e) { console.error(e); }
     })();
     setOpen(true);
@@ -114,6 +135,7 @@ export default function ProdukAdmin() {
       // if there are temporary files in modalMedia (temp === true), upload them first
       const tempFiles = modalMedia.filter(m => m.temp === true);
       const uploadedIds = [];
+      const uploadedMap = new Map();
       for (const t of tempFiles) {
         const fd = new FormData();
         fd.append('file', t.file);
@@ -121,11 +143,30 @@ export default function ProdukAdmin() {
         if (!res.ok) throw new Error('Gagal mengunggah salah satu gambar');
         const j = await res.json();
         uploadedIds.push(j.id);
+        if (t.tempId) uploadedMap.set(t.tempId, j.id);
       }
 
       // collect all media ids: existing ones (have id) + newly uploaded
       const existingIds = modalMedia.filter(m => !m.temp).map(m => m.id);
       const allMediaIds = [...existingIds, ...uploadedIds];
+
+      let coverMediaId = null;
+      let coverSpecified = false;
+      if (coverSelection) {
+        coverSpecified = true;
+        if (coverSelection.startsWith('id-')) {
+          const parsed = Number(coverSelection.slice(3));
+          if (!Number.isNaN(parsed)) coverMediaId = parsed;
+        } else if (coverSelection.startsWith('temp-')) {
+          const tempId = coverSelection.slice(5);
+          const mapped = uploadedMap.get(tempId);
+          if (mapped) coverMediaId = mapped;
+        }
+      }
+      if (!coverSelection && modalMedia.length === 0) {
+        coverSpecified = true;
+        coverMediaId = null;
+      }
 
       const payload = {
         nama_paket: vals.nama_paket,
@@ -134,6 +175,9 @@ export default function ProdukAdmin() {
         benefits: vals.benefits || [],
         media_ids: allMediaIds
       };
+      if (coverSpecified) {
+        payload.cover_media_id = coverMediaId;
+      }
       if (editing) {
         await fetch(`/api/produk?id=${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       } else {
@@ -146,6 +190,7 @@ export default function ProdukAdmin() {
         }
       });
       setModalMedia([]);
+      setCoverSelection(null);
       await fetchRows();
       await fetchMeta();
     } catch (e) {
@@ -183,7 +228,10 @@ export default function ProdukAdmin() {
       // create a unique tempId so we can remove this specific temp item later
       const tempId = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
       const tmp = { temp: true, tempId, file, preview, media_path: file.name };
-      setModalMedia(prev => [...prev, tmp]);
+      const key = mediaKey(tmp);
+      const nextKey = coverSelection || key;
+      setModalMedia(prev => applyCoverFlag([...(prev || []), tmp], nextKey));
+      if (!coverSelection) setCoverSelection(nextKey);
       return tmp;
     } catch (e) {
       message.error('Gagal menyiapkan file');
@@ -200,8 +248,19 @@ export default function ProdukAdmin() {
 
   async function handleRemoveMedia(item) {
     if (!item) return;
+    const key = mediaKey(item);
     if (item.temp) {
-      setModalMedia(prev => prev.filter(x => x.tempId !== item.tempId));
+      let nextKey = coverSelection;
+      setModalMedia(prev => {
+        const filtered = (prev || []).filter(x => (x.temp ? x.tempId !== item.tempId : true));
+        if (coverSelection === key) {
+          nextKey = filtered.length > 0 ? mediaKey(filtered[0]) : null;
+        }
+        return applyCoverFlag(filtered, nextKey);
+      });
+      if (coverSelection === key) {
+        setCoverSelection(nextKey);
+      }
       if (item.preview) {
         URL.revokeObjectURL(item.preview);
       }
@@ -211,11 +270,29 @@ export default function ProdukAdmin() {
 
     try {
       await handleDeleteMedia(item.id);
-      setModalMedia(prev => prev.filter(x => x.id !== item.id));
+      let nextKey = coverSelection;
+      setModalMedia(prev => {
+        const filtered = (prev || []).filter(x => x.id !== item.id);
+        if (coverSelection === key) {
+          nextKey = filtered.length > 0 ? mediaKey(filtered[0]) : null;
+        }
+        return applyCoverFlag(filtered, nextKey);
+      });
+      if (coverSelection === key) {
+        setCoverSelection(nextKey);
+      }
       message.success('Gambar dihapus');
     } catch (err) {
       message.error(err?.message || 'Gagal menghapus gambar');
     }
+  }
+
+  function handleSelectCover(item) {
+    if (!item) return;
+    const key = mediaKey(item);
+    if (!key) return;
+    setCoverSelection(key);
+    setModalMedia(prev => applyCoverFlag(prev, key));
   }
 
   async function handleCreateCategory({ nama_kategori, sub_kategori }) {
@@ -335,8 +412,10 @@ export default function ProdukAdmin() {
         benefitOptions={benefitOptions}
         benefitCategoryOptions={benefitCategoryOptions}
         modalMedia={modalMedia}
+        coverSelection={coverSelection}
         onUpload={handleModalUpload}
         onRemoveMedia={handleRemoveMedia}
+        onSelectCover={handleSelectCover}
         onCreateCategory={handleCreateCategory}
         onCreateBenefitCategory={handleCreateBenefitCategory}
         onCreateBenefit={handleCreateBenefit}

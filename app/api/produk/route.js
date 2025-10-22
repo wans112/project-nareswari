@@ -76,6 +76,33 @@ async function ensureBenefitIds(db, benefits = []) {
 	return ids;
 }
 
+function upsertCoverMedia(db, produkId, mediaId) {
+	if (mediaId == null) {
+		db.prepare('DELETE FROM cover_media WHERE produk_id = ?').run(produkId);
+		return null;
+	}
+	const target = db.prepare('SELECT id FROM media WHERE id = ? AND produk_id = ?').get(mediaId, produkId);
+	if (!target) throw new Error('cover_media_id invalid for produk');
+	db.prepare('INSERT INTO cover_media (produk_id, media_id) VALUES (?, ?) ON CONFLICT(produk_id) DO UPDATE SET media_id = excluded.media_id').run(produkId, mediaId);
+	return mediaId;
+}
+
+function ensureCoverMedia(db, produkId) {
+	const current = db.prepare('SELECT media_id FROM cover_media WHERE produk_id = ?').get(produkId);
+	if (current) return current.media_id;
+	const fallback = db.prepare('SELECT id FROM media WHERE produk_id = ? ORDER BY id DESC LIMIT 1').get(produkId);
+	if (fallback) {
+		db.prepare('INSERT INTO cover_media (produk_id, media_id) VALUES (?, ?)').run(produkId, fallback.id);
+		return fallback.id;
+	}
+	db.prepare('DELETE FROM cover_media WHERE produk_id = ?').run(produkId);
+	return null;
+}
+
+function coverUrlFromPath(path) {
+	return path ? `/api/media?file=${encodeURIComponent(path)}` : null;
+}
+
 export async function GET(req) {
 	try {
 		const db = await init();
@@ -97,25 +124,41 @@ export async function GET(req) {
 
 		if (id) {
 			const row = db.prepare(
-				`SELECT p.*, kp.nama_kategori, kp.sub_kategori, kp.code_kategori, kp.deskripsi_kategori
-				 FROM produk p JOIN kategori_produk kp ON kp.id = p.kategori_produk_id
+				`SELECT p.*, kp.nama_kategori, kp.sub_kategori, kp.code_kategori, kp.deskripsi_kategori,
+					cm.media_id AS cover_media_id,
+					mcover.media_path AS cover_media_path
+				 FROM produk p
+				 JOIN kategori_produk kp ON kp.id = p.kategori_produk_id
+				 LEFT JOIN cover_media cm ON cm.produk_id = p.id
+				 LEFT JOIN media mcover ON mcover.id = cm.media_id
 				 WHERE p.id = ?`
 			).get(id);
 			if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 			const bens = db.prepare('SELECT b.benefit FROM benefit b JOIN produk_benefit pb ON pb.benefit_id = b.id WHERE pb.produk_id = ?').all(id);
 			row.benefits = bens.map(x => x.benefit);
+			row.cover_url = coverUrlFromPath(row.cover_media_path);
 			return NextResponse.json(row, { status: 200 });
 		}
 
 		const rows = db.prepare(
-			`SELECT p.*, kp.nama_kategori, kp.sub_kategori, kp.code_kategori, kp.deskripsi_kategori, group_concat(b.benefit) AS benefits
-			 FROM produk p JOIN kategori_produk kp ON kp.id = p.kategori_produk_id
+			`SELECT p.*, kp.nama_kategori, kp.sub_kategori, kp.code_kategori, kp.deskripsi_kategori,
+				cm.media_id AS cover_media_id,
+				mcover.media_path AS cover_media_path,
+				group_concat(b.benefit) AS benefits
+			 FROM produk p
+			 JOIN kategori_produk kp ON kp.id = p.kategori_produk_id
+			 LEFT JOIN cover_media cm ON cm.produk_id = p.id
+			 LEFT JOIN media mcover ON mcover.id = cm.media_id
 			 LEFT JOIN produk_benefit pb ON pb.produk_id = p.id
 			 LEFT JOIN benefit b ON b.id = pb.benefit_id
 			 GROUP BY p.id
 			 ORDER BY p.id DESC`
 		).all();
-		const out = rows.map(r => ({ ...r, benefits: r.benefits ? String(r.benefits).split(',') : [] }));
+		const out = rows.map(r => ({
+			...r,
+			benefits: r.benefits ? String(r.benefits).split(',') : [],
+			cover_url: coverUrlFromPath(r.cover_media_path)
+		}));
 		return NextResponse.json(out, { status: 200 });
 	} catch (err) {
 		return NextResponse.json({ error: err.message }, { status: 500 });
@@ -126,7 +169,7 @@ export async function POST(req) {
 	try {
 		const db = await init();
 		const body = await req.json();
-	const { nama_paket, harga = null, kategori_produk_id, nama_kategori, sub_kategori = null, code_kategori, deskripsi_kategori, benefits = [], media_ids = [] } = body;
+		const { nama_paket, harga = null, kategori_produk_id, nama_kategori, sub_kategori = null, code_kategori, deskripsi_kategori, benefits = [], media_ids = [], cover_media_id } = body;
 		if (!nama_paket) return NextResponse.json({ error: 'nama_paket required' }, { status: 422 });
 
 		const catId = ensureCategoryId(db, { kategori_produk_id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori });
@@ -150,6 +193,26 @@ export async function POST(req) {
 			});
 			txm(newId, media_ids);
 		}
+
+		const coverProvided = Object.prototype.hasOwnProperty.call(body, 'cover_media_id');
+		if (coverProvided) {
+			if (cover_media_id === null || cover_media_id === '') {
+				upsertCoverMedia(db, newId, null);
+			} else {
+				const parsed = Number(cover_media_id);
+				if (!Number.isFinite(parsed)) return NextResponse.json({ error: 'cover_media_id invalid' }, { status: 422 });
+				try {
+					upsertCoverMedia(db, newId, parsed);
+				} catch (error) {
+					if (error?.message?.includes('cover_media_id')) {
+						return NextResponse.json({ error: 'cover_media_id invalid' }, { status: 422 });
+					}
+					throw error;
+				}
+			}
+		} else if (Array.isArray(media_ids) && media_ids.length > 0) {
+			ensureCoverMedia(db, newId);
+		}
 		const created = db.prepare('SELECT * FROM produk WHERE id = ?').get(newId);
 		return NextResponse.json(created, { status: 201 });
 	} catch (err) {
@@ -165,7 +228,7 @@ export async function PUT(req) {
 		if (!id) return NextResponse.json({ error: 'id query required' }, { status: 422 });
 
 		const body = await req.json();
-	const { nama_paket, harga, kategori_produk_id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori, benefits, media_ids = [], removed_media_ids = [] } = body;
+		const { nama_paket, harga, kategori_produk_id, nama_kategori, sub_kategori, code_kategori, deskripsi_kategori, benefits, media_ids = [], removed_media_ids = [], cover_media_id } = body;
 
 		if (nama_paket !== undefined || harga !== undefined || kategori_produk_id !== undefined || nama_kategori !== undefined) {
 			const parts = [];
@@ -207,6 +270,34 @@ export async function PUT(req) {
 				for (const mid of ids) updNull.run(mid);
 			});
 			txn(removed_media_ids);
+
+			const delCover = db.prepare('DELETE FROM cover_media WHERE produk_id = ? AND media_id = ?');
+			const txDelCover = db.transaction((pid, ids) => {
+				for (const mid of ids) delCover.run(pid, mid);
+			});
+			txDelCover(id, removed_media_ids);
+		}
+
+		const coverProvided = Object.prototype.hasOwnProperty.call(body, 'cover_media_id');
+		if (coverProvided) {
+			if (cover_media_id === null || cover_media_id === '') {
+				upsertCoverMedia(db, id, null);
+			} else {
+				const parsed = Number(cover_media_id);
+				if (!Number.isFinite(parsed)) return NextResponse.json({ error: 'cover_media_id invalid' }, { status: 422 });
+				try {
+					upsertCoverMedia(db, id, parsed);
+				} catch (error) {
+					if (error?.message?.includes('cover_media_id')) {
+						return NextResponse.json({ error: 'cover_media_id invalid' }, { status: 422 });
+					}
+					throw error;
+				}
+			}
+		}
+
+		if (!coverProvided) {
+			ensureCoverMedia(db, id);
 		}
 
 		const updated = db.prepare('SELECT * FROM produk WHERE id = ?').get(id);

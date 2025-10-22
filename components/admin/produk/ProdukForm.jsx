@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, Upload, Button, List, Image, Divider, Space, message } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Upload, Button, List, Image, Space, Tag, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 
 export default function ProdukForm({
@@ -16,9 +16,11 @@ export default function ProdukForm({
 	modalMedia,
 	onUpload,
 	onRemoveMedia,
+	onSelectCover,
 	onCreateCategory,
 	onCreateBenefitCategory,
 	onCreateBenefit,
+	coverSelection,
 }) {
 	const title = editing ? 'Edit Produk' : 'Tambah Produk';
 
@@ -38,6 +40,13 @@ export default function ProdukForm({
 	const [creatingBenefit, setCreatingBenefit] = useState(false);
 	const [showCategoryForm, setShowCategoryForm] = useState(false);
 	const [showBenefitForm, setShowBenefitForm] = useState(false);
+
+	const mediaKey = (item) => {
+		if (!item) return null;
+		if (item.temp) return `temp-${item.tempId}`;
+		if (item.id != null) return `id-${item.id}`;
+		return null;
+	};
 
 	useEffect(() => {
 		setLocalCategoryOptions(categoryOptions || []);
@@ -288,25 +297,43 @@ export default function ProdukForm({
 					<List
 						dataSource={modalMedia}
 						bordered
-						renderItem={(item) => (
-							<List.Item
-								actions={[
-									<Button
-										key="remove"
-										danger
-										size="small"
-										onClick={() => onRemoveMedia(item)}
-									>
-										Hapus
-									</Button>,
-								]}
-							>
-								<List.Item.Meta
-									avatar={<Image width={56} src={item.preview || item.url} />}
-									title={item.media_path || item.url}
-								/>
-							</List.Item>
-						)}
+						renderItem={(item) => {
+							const key = mediaKey(item);
+							const isSelected = coverSelection === key;
+							return (
+								<List.Item
+									key={key || item.media_path || item.url}
+									actions={[
+										<Button
+											key="cover"
+											type={isSelected ? 'primary' : 'default'}
+											size="small"
+											onClick={() => onSelectCover?.(item)}
+										>
+											{isSelected ? 'Cover aktif' : 'Jadikan cover'}
+										</Button>,
+										<Button
+											key="remove"
+											danger
+											size="small"
+											onClick={() => onRemoveMedia(item)}
+										>
+											Hapus
+										</Button>,
+									]}
+								>
+									<List.Item.Meta
+										avatar={<Image width={56} src={item.preview || item.url} />}
+										title={(
+											<Space size={8}>
+												<span>{item.media_path || item.file?.name || item.url || 'Gambar'}</span>
+												{isSelected && <Tag color="green">Cover</Tag>}
+											</Space>
+										)}
+									/>
+								</List.Item>
+							);
+						}}
 					/>
 				</div>
 			</Form>
