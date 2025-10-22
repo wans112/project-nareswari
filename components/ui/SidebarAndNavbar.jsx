@@ -43,13 +43,12 @@ Props:
 
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { MenuOutlined, CloseOutlined } from '@ant-design/icons'
 import { Dropdown, Space } from 'antd'
 
 // ...dokumentasi lengkap di atas...
 // userMenu: { name: string, username: string, avatar: ReactNode, menu: Array }
-export default function SidebarAndNavbar({ menuItems = [], children, brandName = "", brandLogo = "", userMenu = null }) {
+export default function SidebarAndNavbar({ menuItems = [], children, brandName = "", brandLogo = "", userMenu = null, onLogout }) {
   // State untuk sidebar mobile
   const [sidebarOpen, setSidebarOpen] = useState(false)
     // State menu aktif di sidebar
@@ -117,15 +116,31 @@ export default function SidebarAndNavbar({ menuItems = [], children, brandName =
                     });
                     items.push({ type: 'divider' });
                     // Menu items dari userMenu.menu
-                    userMenu.menu?.forEach((item, idx) => {
+                    const menuEntries = userMenu.menu || [];
+                    menuEntries.forEach((item, idx) => {
                       items.push({
                         key: item.key || idx,
-                          label: (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={item.onClick}>
-                              {item.label}
-                            </span>
-                          ),
+                        label: (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={item.onClick}>
+                            {item.label}
+                          </span>
+                        ),
                       });
+                    });
+                    if (menuEntries.length > 0) {
+                      items.push({ type: 'divider' });
+                    }
+                    items.push({
+                      key: 'logout',
+                      label: (
+                        <button
+                          type="button"
+                          className="w-full text-left text-red-600 hover:text-red-700"
+                          onClick={() => onLogout?.()}
+                        >
+                          Keluar
+                        </button>
+                      ),
                     });
                     return (
                       <Dropdown menu={{ items }} placement="bottomRight" trigger={["click"]}>

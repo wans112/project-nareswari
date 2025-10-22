@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import SidebarAndNavbar from "@/components/ui/SidebarAndNavbar";
 import StatistikAdmin from "@/components/admin/Statistik";
 import ProdukAdmin from "@/components/admin/Produk";
@@ -11,6 +13,18 @@ import NotifikasiNomor from "@/components/admin/NotifikasiNomor";
 import Booking from "@/components/admin/Booking";
 
 export default function Page() {
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        try {
+            await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+        } catch (error) {
+            // ignore errors so user can still navigate away
+        } finally {
+            router.replace("/admin");
+        }
+    };
+
     const menuItems = [
         {
             id: "statistik",
@@ -60,6 +74,12 @@ export default function Page() {
         <SidebarAndNavbar
             brandName="Nareswari Admin"
             menuItems={menuItems}
+            userMenu={{
+                name: "Admin",
+                username: "admin",
+                menu: [],
+            }}
+            onLogout={handleLogout}
         />
     );
 }
