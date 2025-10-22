@@ -1,20 +1,25 @@
 "use client";
 
+import Image from "next/image";
 import { AnimatedInView } from "@/components/ui/animated-in-view";
 import { Button } from "../ui/button";
 
 export default function AboutSection() {
   return (
-  <section id="about" className="w-full min-h-screen text-black bg-white flex items-center snap-start">
+  <section id="about" className="w-full min-h-[85vh] sm:min-h-screen text-black bg-white flex items-center snap-start">
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
           <AnimatedInView className="rounded-md overflow-hidden shadow-md h-full" threshold={0.25}>
-            <div
-              role="img"
-              aria-label="Nareswari event"
-              className="w-full h-full bg-cover bg-center"
-              style={{ backgroundImage: "url('/about.jpg')" }}
-            />
+            <div className="relative w-full h-full min-h-[320px]" aria-label="Nareswari event">
+              <Image
+                src="/about.jpg"
+                alt="Nareswari event"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
+                priority={false}
+              />
+            </div>
           </AnimatedInView>
           <AnimatedInView threshold={0.25}>
             {/* Desktop: show original (long) content on md+ screens */}

@@ -52,7 +52,7 @@ export default function DiskonSection({ items = [] }) {
   const limited = items.slice(0, 4);
 
   return (
-    <section id="diskon" className="w-full min-h-screen bg-[#0f0f0f] text-white flex items-center snap-start">
+    <section id="diskon" className="w-full min-h-[85vh] sm:min-h-screen bg-[#0f0f0f] text-white flex items-center snap-start">
       <div className="max-w-7xl mx-auto px-6 py-16 w-full space-y-8">
         <AnimatedInView className="flex flex-col md:flex-row md:items-end md:justify-between gap-4" threshold={0.3}>
           <div>

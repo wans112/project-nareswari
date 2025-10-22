@@ -15,7 +15,7 @@ export default function CategoriesSection({ initialCategories = [] }) {
   const hasCategories = Array.isArray(categories) && categories.length > 0;
 
   return (
-    <section id="packages" className="w-full min-h-screen flex items-center bg-white text-black snap-start">
+    <section id="packages" className="w-full min-h-[85vh] sm:min-h-screen flex items-center bg-white text-black snap-start">
       <div className="max-w-7xl mx-auto px-6 pt-2 pb-8 w-full">
         <AnimatedInView as="h2" className="text-3xl sm:text-4xl !font-extrabold text-center" threshold={0.4}>
           Layanan

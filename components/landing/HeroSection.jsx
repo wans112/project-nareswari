@@ -1,18 +1,23 @@
 "use client";
 
+import Image from "next/image";
 import { AnimatedInView } from "@/components/ui/animated-in-view";
 import { Button } from "../ui/button";
 
 export default function HeroSection() {
   return (
-  <section id="hero" className="w-full min-h-screen relative flex items-center snap-start">
-      {/* Background covers the entire section and will crop automatically (bg-cover) */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/hero.jpg')" }}
-        aria-hidden="true"
+  <section id="hero" className="w-full min-h-[85vh] sm:min-h-screen relative flex items-center snap-start">
+    <div className="absolute inset-0" aria-hidden="true">
+      <Image
+        src="/hero.jpg"
+        alt="Latar belakang hero Nareswari Galeri"
+        fill
+        priority
+        sizes="(max-width: 640px) 100vw, 100vw"
+        className="object-cover"
       />
-      <div className="absolute inset-0 bg-black/70" aria-hidden="true" />
+    </div>
+    <div className="absolute inset-0 bg-black/70" aria-hidden="true" />
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 py-16 sm:py-24 w-full">
         <AnimatedInView className="text-center py-12 sm:py-16" threshold={0.3}>

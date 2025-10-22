@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { gsap } from "gsap";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { AnimatedInView } from "@/components/ui/animated-in-view";
@@ -25,9 +24,30 @@ function Stars({ value = 0, max = 5 }) {
 export default function ReviewSection() {
 	const containerRef = useRef(null);
 	const timelineRef = useRef(null);
+	const gsapRef = useRef(null);
 	const [reviews, setReviews] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
+	const [isMobile, setIsMobile] = useState(false);
+	const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		const media = window.matchMedia('(max-width: 640px)');
+		const updateMobile = () => setIsMobile(media.matches);
+		updateMobile();
+		media.addEventListener('change', updateMobile);
+		return () => media.removeEventListener('change', updateMobile);
+	}, []);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+		const updatePref = () => setPrefersReducedMotion(media.matches);
+		updatePref();
+		media.addEventListener('change', updatePref);
+		return () => media.removeEventListener('change', updatePref);
+	}, []);
 
 	useEffect(() => {
 		let active = true;
@@ -67,6 +87,17 @@ export default function ReviewSection() {
 	useEffect(() => {
 		const container = containerRef.current;
 		if (!container) return;
+
+		const disableAnimation = isMobile || prefersReducedMotion;
+
+		if (disableAnimation) {
+			if (timelineRef.current) {
+				timelineRef.current.kill();
+				timelineRef.current = null;
+			}
+			container.style.transform = '';
+			return;
+		}
 		if (!reviews || reviews.length <= 1) {
 			if (timelineRef.current) {
 				timelineRef.current.kill();
@@ -79,25 +110,34 @@ export default function ReviewSection() {
 		const cards = container.querySelectorAll('.review-card');
 		if (cards.length === 0) return;
 
-		const cardWidth = cards[0].offsetWidth;
-		const gap = 24; // 1.5rem gap
-		const moveDistance = cardWidth + gap;
+		const setupTimeline = async () => {
+			if (timelineRef.current) {
+				timelineRef.current.kill();
+				timelineRef.current = null;
+			}
 
-		if (timelineRef.current) {
-			timelineRef.current.kill();
-			timelineRef.current = null;
-		}
+			if (!gsapRef.current) {
+				const mod = await import('gsap');
+				gsapRef.current = mod.gsap || mod.default || mod;
+			}
 
-		const distance = moveDistance * reviews.length;
-		const duration = Math.max(1, reviews.length) * 4;
+			const cardWidth = cards[0].offsetWidth;
+			const gap = 24; // 1.5rem gap
+			const moveDistance = cardWidth + gap;
+			const distance = moveDistance * reviews.length;
+			const duration = Math.max(1, reviews.length) * 4;
+			const gsapInstance = gsapRef.current;
 
-		timelineRef.current = gsap.timeline({ repeat: -1 });
-		timelineRef.current.to(container, {
-			x: -distance,
-			duration,
-			ease: "none"
-		});
-		timelineRef.current.set(container, { x: 0 });
+			timelineRef.current = gsapInstance.timeline({ repeat: -1 });
+			timelineRef.current.to(container, {
+				x: -distance,
+				duration,
+				ease: "none"
+			});
+			timelineRef.current.set(container, { x: 0 });
+		};
+
+		setupTimeline();
 
 		const handleMouseEnter = () => {
 			if (timelineRef.current) timelineRef.current.timeScale(0.2);
@@ -119,7 +159,7 @@ export default function ReviewSection() {
 			container.removeEventListener('mouseleave', handleMouseLeave);
 			container.style.transform = '';
 		};
-	}, [reviews]);
+	}, [reviews, isMobile, prefersReducedMotion]);
 
 	const duplicatedReviews = useMemo(() => {
 		if (!reviews || reviews.length === 0) return [];
@@ -127,9 +167,12 @@ export default function ReviewSection() {
 		return [...reviews, ...reviews];
 	}, [reviews]);
 
+	const motionDisabled = isMobile || prefersReducedMotion;
+	const renderedReviews = motionDisabled ? reviews : duplicatedReviews;
+
 	return (
 		// Section background is white to invert from the dark site theme.
-		<section id="reviews" className="w-full overflow-hidden min-h-screen snap-start flex items-center justify-center">
+		<section id="reviews" className="w-full overflow-hidden min-h-[85vh] sm:min-h-screen snap-start flex items-center justify-center">
 			<div className="max-w-7xl mx-auto px-6 py-12">
 				<AnimatedInView as="h2" className="text-3xl sm:text-4xl !font-extrabold mb-6 text-center" threshold={0.35}>
 					Ulasan Pelanggan
@@ -148,16 +191,16 @@ export default function ReviewSection() {
 				)}
 
 				{/* Carousel container - allow visible overflow on small screens to avoid clipping scaled cards */}
-				<AnimatedInView className="relative overflow-visible px-4 sm:overflow-hidden sm:px-8" threshold={0.25}>
+				<AnimatedInView className={`relative px-4 sm:px-8 ${motionDisabled ? 'overflow-x-auto sm:overflow-hidden' : 'overflow-visible sm:overflow-hidden'}`} threshold={0.25}>
 					<div 
 						ref={containerRef}
-						className="flex gap-6 py-4"
-						style={{ willChange: 'transform' }}
+						className={`flex gap-6 py-4 ${motionDisabled ? 'snap-x snap-mandatory touch-pan-x' : ''}`}
+						style={motionDisabled ? undefined : { willChange: 'transform' }}
 					>
-						{duplicatedReviews.map((r, index) => (
+						{renderedReviews.map((r, index) => (
 							<article 
 								key={`${r.id}-${index}`} 
-								className="review-card flex-shrink-0 w-72 sm:w-80 md:w-96 h-65 transition-transform duration-300 hover:scale-105"
+								className={`review-card flex-shrink-0 w-72 sm:w-80 md:w-96 h-65 transition-transform duration-300 ${motionDisabled ? 'snap-center' : 'hover:scale-105'}`}
 							>
 								{/* Card inverted: black background, white text. Wrap in anCarousel containerchor so card is clickable */}
 								<a href={r.href} className="block rounded-lg h-full">
