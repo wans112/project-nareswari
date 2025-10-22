@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,15 +15,19 @@ const sanitizeClientInput = (value = "") =>
 
 export default function AdminLoginPage() {
 	const router = useRouter();
-	const searchParams = useSearchParams();
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
-	const [statusMessage, setStatusMessage] = useState(() => {
-		const redirectFlag = searchParams?.get("redirectTo");
-		return redirectFlag ? "Sesi Anda berakhir. Silakan login kembali." : "";
-	});
+	const [statusMessage, setStatusMessage] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const params = new URLSearchParams(window.location.search);
+		if (params.get("redirectTo")) {
+			setStatusMessage("Sesi Anda berakhir. Silakan login kembali.");
+		}
+	}, []);
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
