@@ -66,7 +66,7 @@ export default function AdminLoginPage() {
 		<main className="min-h-screen w-full bg-gradient-to-br from-white via-blue-50 to-sky-100 text-slate-800 flex items-center justify-center px-4 py-12">
 			<Card className="w-full max-w-md border-blue-200 bg-white text-slate-900 shadow-lg">
 				<CardHeader>
-					<CardTitle className="text-center text-2xl font-bold text-blue-700">Masuk Admin</CardTitle>
+					<CardTitle className="text-center text-2xl font-bold text-blue-700">Login</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<form className="space-y-5" onSubmit={handleSubmit} autoComplete="on">
@@ -111,7 +111,7 @@ export default function AdminLoginPage() {
 								required
 							/>
 						</div>
-						<Button type="submit" className="w-full bg-blue-600 text-white hover:bg-blue-700" disabled={isSubmitting}>
+						<Button type="submit" className="w-full bg-blue-600 !text-white hover:bg-blue-700" disabled={isSubmitting}>
 							{isSubmitting ? "Memproses..." : "Masuk"}
 						</Button>
 					</form>
