@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AnimatedInView } from "@/components/ui/animated-in-view";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "../ui/carousel";
 export default function CategoriesSection({ initialCategories = [] }) {
@@ -16,7 +17,9 @@ export default function CategoriesSection({ initialCategories = [] }) {
   return (
     <section id="packages" className="w-full min-h-screen flex items-center bg-white text-black snap-start">
       <div className="max-w-7xl mx-auto px-6 pt-2 pb-8 w-full">
-        <h2 className="text-3xl sm:text-4xl !font-extrabold text-center">Layanan</h2>
+        <AnimatedInView as="h2" className="text-3xl sm:text-4xl !font-extrabold text-center" threshold={0.4}>
+          Layanan
+        </AnimatedInView>
         {/* Mobile: carousel (visible on screens smaller than sm) */}
         <div className="mt-6 relative sm:hidden">
           {hasCategories ? (
@@ -24,17 +27,19 @@ export default function CategoriesSection({ initialCategories = [] }) {
               <CarouselContent className="p-4">
                 {categories.map((c) => (
                   <CarouselItem key={c.id ?? c.href} className="min-w-[18rem] md:min-w-[20rem] lg:min-w-[14rem]">
-                    <Link href={c.href} className="block w-full h-full no-underline">
-                      <Card className="h-full p-4 border-2 hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
-                        <CardHeader>
-                          <CardTitle className="text-lg font-semibold">{c.label}</CardTitle>
-                          <CardDescription>{/* optional small label */}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex-1">
-                          <p className="text-base text-muted-foreground">{c.description}</p>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                    <AnimatedInView className="h-full" threshold={0.3}>
+                      <Link href={c.href} className="block w-full h-full no-underline">
+                        <Card className="h-full p-4 border-2 hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out">
+                          <CardHeader>
+                            <CardTitle className="text-lg font-semibold">{c.label}</CardTitle>
+                            <CardDescription>{/* optional small label */}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="flex-1">
+                            <p className="text-base text-muted-foreground">{c.description}</p>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    </AnimatedInView>
                   </CarouselItem>
                 ))}
               </CarouselContent>
@@ -54,17 +59,19 @@ export default function CategoriesSection({ initialCategories = [] }) {
                 const style = { animationDelay: delays[i % delays.length], animationDuration: durations[i % durations.length] };
 
                 return (
-                  <Link key={c.id ?? c.href ?? i} href={c.href} className="block w-full h-full no-underline">
-                    <Card style={style} className="h-full p-4 border-2 hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out card-float">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-semibold">{c.label}</CardTitle>
-                        <CardDescription>{/* optional small label */}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-1">
-                        <p className="text-base text-muted-foreground">{c.description}</p>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                  <AnimatedInView key={c.id ?? c.href ?? i} className="h-full" threshold={0.25}>
+                    <Link href={c.href} className="block w-full h-full no-underline">
+                      <Card style={style} className="h-full p-4 border-2 hover:shadow-2xl hover:scale-105 transition-transform duration-300 ease-in-out card-float">
+                        <CardHeader>
+                          <CardTitle className="text-lg font-semibold">{c.label}</CardTitle>
+                          <CardDescription>{/* optional small label */}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                          <p className="text-base text-muted-foreground">{c.description}</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  </AnimatedInView>
                 );
               })}
             </div>

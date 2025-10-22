@@ -1,3 +1,6 @@
+"use client";
+
+import { AnimatedInView } from "@/components/ui/animated-in-view";
 import { Button } from "../ui/button";
 
 export default function AboutSection() {
@@ -5,15 +8,15 @@ export default function AboutSection() {
   <section id="about" className="w-full min-h-screen text-black bg-white flex items-center snap-start">
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-          <div className="rounded-md overflow-hidden shadow-md h-full">
+          <AnimatedInView className="rounded-md overflow-hidden shadow-md h-full" threshold={0.25}>
             <div
               role="img"
               aria-label="Nareswari event"
               className="w-full h-full bg-cover bg-center"
               style={{ backgroundImage: "url('/about.jpg')" }}
             />
-          </div>
-          <div>
+          </AnimatedInView>
+          <AnimatedInView threshold={0.25}>
             {/* Desktop: show original (long) content on md+ screens */}
             <div className="hidden md:block">
               <h2 className="text-3xl sm:text-4xl !font-extrabold mb-6">Tentang Kami: Cerita di Balik Momen Sempurna Anda</h2>
@@ -74,7 +77,7 @@ export default function AboutSection() {
                 </Button>
               </div>
             </div>
-          </div>
+          </AnimatedInView>
         </div>
       </div>
     </section>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Avatar, AvatarFallback } from "../ui/avatar";
+import { AnimatedInView } from "@/components/ui/animated-in-view";
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 function Stars({ value = 0, max = 5 }) {
@@ -130,9 +131,9 @@ export default function ReviewSection() {
 		// Section background is white to invert from the dark site theme.
 		<section id="reviews" className="w-full overflow-hidden min-h-screen snap-start flex items-center justify-center">
 			<div className="max-w-7xl mx-auto px-6 py-12">
-				<h2 className="text-3xl sm:text-4xl !font-extrabold mb-6 text-center">
+				<AnimatedInView as="h2" className="text-3xl sm:text-4xl !font-extrabold mb-6 text-center" threshold={0.35}>
 					Ulasan Pelanggan
-				</h2>
+				</AnimatedInView>
 
 				{error && (
 					<p className="text-center text-sm text-destructive mb-4">{error}</p>
@@ -147,7 +148,7 @@ export default function ReviewSection() {
 				)}
 
 				{/* Carousel container - allow visible overflow on small screens to avoid clipping scaled cards */}
-				<div className="relative overflow-visible px-4 sm:overflow-hidden sm:px-8">
+				<AnimatedInView className="relative overflow-visible px-4 sm:overflow-hidden sm:px-8" threshold={0.25}>
 					<div 
 						ref={containerRef}
 						className="flex gap-6 py-4"
@@ -158,7 +159,7 @@ export default function ReviewSection() {
 								key={`${r.id}-${index}`} 
 								className="review-card flex-shrink-0 w-72 sm:w-80 md:w-96 h-65 transition-transform duration-300 hover:scale-105"
 							>
-								{/* Card inverted: black background, white text. Wrap in anchor so card is clickable */}
+								{/* Card inverted: black background, white text. Wrap in anCarousel containerchor so card is clickable */}
 								<a href={r.href} className="block rounded-lg h-full">
 									<Card className="h-full shadow-lg flex flex-col overflow-hidden">
 										<CardHeader className="flex items-center gap-4">
@@ -189,7 +190,7 @@ export default function ReviewSection() {
 							</article>
 						))}
 					</div>
-				</div>
+				</AnimatedInView>
 			</div>
 		</section>
 	);

@@ -1,4 +1,6 @@
 "use client";
+
+import { AnimatedInView } from "@/components/ui/animated-in-view";
 import { Button } from "../ui/button";
 
 export default function HeroSection() {
@@ -13,7 +15,7 @@ export default function HeroSection() {
       <div className="absolute inset-0 bg-black/70" aria-hidden="true" />
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 py-16 sm:py-24 w-full">
-        <div className="text-center py-12 sm:py-16">
+        <AnimatedInView className="text-center py-12 sm:py-16" threshold={0.3}>
           <h1 
             className="text-3xl sm:text-5xl text-white mb-4 sm:mb-6"
             style={{ 
@@ -35,7 +37,7 @@ export default function HeroSection() {
               <a href="#footer">Hubungi Kami</a>
             </Button>
           </div>
-        </div>
+        </AnimatedInView>
       </div>
     </section>
   );
