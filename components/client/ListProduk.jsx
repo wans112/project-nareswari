@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from "react";
 
+import { canonicalCategorySlug, categoryMatchesSlug, slugify, titleFromSlug } from "@/lib/slug";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
@@ -18,22 +19,6 @@ import {
   SelectContent,
   SelectItem,
 } from "../ui/select";
-
-const slugify = (text = '') =>
-  String(text)
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-
-const formatTitleFromSlug = (slug = '') =>
-  slug
-    .split('-')
-    .filter(Boolean)
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 
 export default function ListProduk({ category }) {
   const router = useRouter();
@@ -57,16 +42,7 @@ export default function ListProduk({ category }) {
         const data = await res.json();
         if (!mounted) return;
 
-        const filtered = Array.isArray(data)
-          ? data.filter(p => {
-              const itemCategory = slugify(p?.nama_kategori || '');
-              const itemSub = slugify(p?.sub_kategori || '');
-              if (!categorySlug) return Boolean(itemCategory || itemSub);
-              return categorySlug === itemCategory || (!!itemSub && categorySlug === itemSub);
-            })
-          : [];
-
-        setAllProducts(filtered);
+        setAllProducts(Array.isArray(data) ? data : []);
         setError(null);
       } catch (err) {
         setError(err.message || 'Error loading packages');
@@ -78,20 +54,42 @@ export default function ListProduk({ category }) {
     return () => { mounted = false; };
   }, [categorySlug]);
 
+  const categoryProducts = useMemo(() => {
+    const items = Array.isArray(allProducts) ? allProducts : [];
+    if (!categorySlug) return items;
+    return items.filter((item) => categoryMatchesSlug(item, categorySlug));
+  }, [allProducts, categorySlug]);
+
+  const matchedCategoryInfo = useMemo(() => {
+    if (!categorySlug) return null;
+    const items = Array.isArray(allProducts) ? allProducts : [];
+    for (const item of items) {
+      if (!item) continue;
+      if (categoryMatchesSlug(item, categorySlug)) {
+        const label = item?.nama_kategori || titleFromSlug(canonicalCategorySlug(item)) || titleFromSlug(categorySlug);
+        return {
+          label,
+          canonicalSlug: canonicalCategorySlug(item),
+        };
+      }
+    }
+    return null;
+  }, [allProducts, categorySlug]);
+
   const subcategoryOptions = useMemo(() => {
-    if (!Array.isArray(allProducts)) return [];
+    if (!Array.isArray(categoryProducts)) return [];
     const map = new Map();
-    for (const item of allProducts) {
+    for (const item of categoryProducts) {
       const label = item?.sub_kategori || item?.nama_kategori || 'Tanpa Subkategori';
       const value = slugify(item?.sub_kategori || item?.nama_kategori || '');
       if (!value) continue;
       if (!map.has(value)) map.set(value, label);
     }
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
-  }, [allProducts]);
+  }, [categoryProducts]);
 
   const filteredProducts = useMemo(() => {
-    const byCategory = Array.isArray(allProducts) ? allProducts : [];
+    const byCategory = Array.isArray(categoryProducts) ? [...categoryProducts] : [];
     const min = priceMin ? Number(priceMin) : null;
     const max = priceMax ? Number(priceMax) : null;
     const filtered = byCategory.filter(item => {
@@ -124,11 +122,11 @@ export default function ListProduk({ category }) {
       return filtered.sort(() => Math.random() - 0.5);
     }
     return filtered;
-  }, [allProducts, searchTerm, selectedSubcategory, priceMin, priceMax, sortBy]);
+  }, [categoryProducts, searchTerm, selectedSubcategory, priceMin, priceMax, sortBy]);
 
   const packages = useMemo(() => {
     return filteredProducts.map(p => {
-      const itemCategorySlug = slugify(p?.nama_kategori || categorySlug || 'produk');
+      const itemCategorySlug = canonicalCategorySlug(p) || categorySlug || slugify(p?.nama_kategori || 'produk');
       const productSlug = slugify(p?.nama_paket || p?.title || 'paket');
       return {
         id: p.id,
@@ -148,9 +146,10 @@ export default function ListProduk({ category }) {
     (sortBy !== 'random')
   );
 
-  const titleText = categorySlug ? `Paket ${formatTitleFromSlug(categorySlug)}` : 'Daftar Paket';
-  const subtitleText = categorySlug
-    ? `Pilih paket ${formatTitleFromSlug(categorySlug)} — klik kartu untuk melihat detail.`
+  const derivedTitle = matchedCategoryInfo?.label || (categorySlug ? titleFromSlug(categorySlug) : '');
+  const titleText = derivedTitle ? `Paket ${derivedTitle}` : 'Daftar Paket';
+  const subtitleText = derivedTitle
+    ? `Pilih paket ${derivedTitle} — klik kartu untuk melihat detail.`
     : 'Pilih paket yang sesuai kebutuhan — klik kartu untuk melihat detail.';
 
   return (

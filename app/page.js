@@ -6,16 +6,7 @@ import FooterSection from "@/components/landing/FooterSection";
 import AboutSection from "@/components/landing/AboutSection";
 import DiskonSection from "@/components/landing/DiskonSection";
 import { init } from "@/lib/db";
-
-function slugify(text = "") {
-  return String(text)
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
+import { canonicalCategorySlug, slugify } from "@/lib/slug";
 
 async function loadCategories(db) {
   const rows = db
@@ -32,16 +23,17 @@ async function loadCategories(db) {
     const nama = row.nama_kategori || "";
     if (!nama) return;
 
-    const groupSlug = slugify(nama);
+    const canonicalSlug = canonicalCategorySlug(row);
+    if (!canonicalSlug) return;
 
-    if (!categoryMap.has(groupSlug)) {
-      categoryMap.set(groupSlug, {
+    if (!categoryMap.has(canonicalSlug)) {
+      categoryMap.set(canonicalSlug, {
         id: row.id, // Use the first ID encountered for this group
         label: nama,
         description: row.deskripsi_kategori,
-        href: `/${groupSlug}`,
-        slug: groupSlug,
-        groupSlug: groupSlug,
+        href: `/${canonicalSlug}`,
+        slug: canonicalSlug,
+        groupSlug: canonicalSlug,
         groupLabel: nama,
       });
     }
@@ -54,8 +46,8 @@ async function loadDiscounts(db) {
   const rows = db
     .prepare(
       `SELECT d.id, d.nama_diskon, d.deskripsi, d.persentase, d.nominal, d.mulai, d.berakhir,
-              p.id AS produk_id, p.nama_paket, p.harga,
-              kp.nama_kategori, kp.sub_kategori
+        p.id AS produk_id, p.nama_paket, p.harga,
+        kp.nama_kategori, kp.sub_kategori, kp.code_kategori
        FROM diskon d
        LEFT JOIN produk p ON p.id = d.produk_id
        LEFT JOIN kategori_produk kp ON kp.id = p.kategori_produk_id
@@ -70,7 +62,11 @@ async function loadDiscounts(db) {
   return rows.map((row) => {
     const kategoriNama = row.nama_kategori || "";
     const kategoriLabel = row.sub_kategori ? `${kategoriNama} — ${row.sub_kategori}` : (kategoriNama || "Produk");
-    const categorySlug = slugify(kategoriNama);
+    const categorySlug = canonicalCategorySlug({
+      code_kategori: row.code_kategori,
+      nama_kategori: kategoriNama,
+      sub_kategori: row.sub_kategori,
+    });
     const productSlug = slugify(row.nama_paket || row.nama_diskon || "");
     const href = categorySlug && productSlug ? `/${categorySlug}/${productSlug}` : null;
 

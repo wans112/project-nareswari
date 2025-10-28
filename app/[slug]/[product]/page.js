@@ -1,16 +1,8 @@
 import React from 'react'
 import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import DetailProduk from '@/components/client/DetailProduk'
-
-function slugify(text = '') {
-  return String(text)
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
+import { canonicalCategorySlug, categoryMatchesSlug, slugify } from '@/lib/slug'
 
 export default async function Page({ params }) {
   const resolvedParams = await params;
@@ -33,14 +25,17 @@ export default async function Page({ params }) {
     const prod = products.find(p => {
       if (!p?.nama_paket) return false;
       const productSlug = slugify(p.nama_paket);
-      const productCategorySlug = slugify(p?.nama_kategori || '');
-      if (categorySlug) {
-        return productSlug === productParam && productCategorySlug === categorySlug;
-      }
-      return productSlug === productParam;
+      if (productSlug !== productParam) return false;
+      if (!categorySlug) return true;
+      return categoryMatchesSlug(p, categorySlug);
     });
 
     if (!prod) return <div>Produk tidak ditemukan</div>;
+
+    const canonicalCategory = canonicalCategorySlug(prod);
+    if (categorySlug && canonicalCategory && canonicalCategory !== categorySlug) {
+      redirect(`/${canonicalCategory}/${productParam}`);
+    }
     return (
       <div className="p-6">
         <DetailProduk product={prod} />

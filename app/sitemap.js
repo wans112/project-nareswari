@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { init } from '@/lib/db';
+import { canonicalCategorySlug, slugify } from '@/lib/slug';
 
 function getBaseUrl() {
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL;
@@ -7,16 +8,6 @@ function getBaseUrl() {
     return 'https://www.nareswarigaleri.com';
   }
   return envUrl.replace(/\/$/, '');
-}
-
-function slugify(text = '') {
-  return String(text)
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
 }
 
 export default async function sitemap() {
@@ -42,7 +33,7 @@ export default async function sitemap() {
     const db = await init();
 
     const products = db.prepare(`
-      SELECT p.id, p.nama_paket, p.created_at, kp.nama_kategori, kp.sub_kategori
+      SELECT p.id, p.nama_paket, p.created_at, kp.nama_kategori, kp.sub_kategori, kp.code_kategori
       FROM produk p
       JOIN kategori_produk kp ON kp.id = p.kategori_produk_id
     `).all();
@@ -50,21 +41,20 @@ export default async function sitemap() {
     const categoryMap = new Map();
 
     for (const product of products) {
-      const catSlug = slugify(product.nama_kategori || '');
-      if (catSlug) {
-        categoryMap.set(catSlug, product.created_at || now.toISOString());
-      }
-      const subSlug = slugify(product.sub_kategori || '');
-      if (subSlug) {
-        categoryMap.set(subSlug, product.created_at || now.toISOString());
+      const canonicalCategory = canonicalCategorySlug(product);
+      const createdAt = product.created_at || now.toISOString();
+      if (canonicalCategory) {
+        const existing = categoryMap.get(canonicalCategory);
+        if (!existing || new Date(createdAt) > new Date(existing)) {
+          categoryMap.set(canonicalCategory, createdAt);
+        }
       }
 
       const productSlug = slugify(product.nama_paket || '');
-      const parentSlug = subSlug || catSlug;
-      if (!productSlug || !parentSlug) continue;
+      if (!productSlug || !canonicalCategory) continue;
 
       entries.push({
-        url: `${baseUrl}/${parentSlug}/${productSlug}`,
+        url: `${baseUrl}/${canonicalCategory}/${productSlug}`,
         lastModified: product.created_at ? new Date(product.created_at) : now,
         changeFrequency: 'monthly',
         priority: 0.6,
