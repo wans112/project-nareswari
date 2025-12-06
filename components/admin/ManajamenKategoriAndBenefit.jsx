@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Table, Button, Modal, Form, Input, Space, message, Popconfirm, Tag } from "antd";
+import React, { useEffect, useMemo, useState } from "react";
+import { Table, Button, Modal, Form, Input, Select, Space, message, Popconfirm, Tag } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from "@ant-design/icons";
 
 export default function ManajamenKategoriAndBenefit() {
@@ -17,6 +17,11 @@ export default function ManajamenKategoriAndBenefit() {
   const [editing, setEditing] = useState(null);
   const [kategoriBenefitModalOpen, setKategoriBenefitModalOpen] = useState(false);
   const [form] = Form.useForm();
+
+  const kategoriBenefitOptions = useMemo(() => {
+    if (!Array.isArray(kategoriBenefit)) return [];
+    return kategoriBenefit.map((item) => ({ value: item.id, label: item.nama_kategori || "Tanpa Nama" }));
+  }, [kategoriBenefit]);
 
   // Fetch data
   async function fetchAll() {
@@ -272,8 +277,19 @@ export default function ManajamenKategoriAndBenefit() {
               <Form.Item name="benefit" label="Nama Benefit" rules={[{ required: true, message: "Wajib diisi" }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="kategori_benefit_id" label="Kategori Benefit">
-                <Input />
+              <Form.Item
+                name="kategori_benefit_id"
+                label="Kategori Benefit"
+                rules={[{ required: true, message: "Pilih kategori benefit" }]}
+              >
+                <Select
+                  placeholder="Pilih kategori benefit"
+                  options={kategoriBenefitOptions}
+                  loading={loading}
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                />
               </Form.Item>
             </>
           )}
