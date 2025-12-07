@@ -13,8 +13,6 @@ const sanitizeClientInput = (value = "") =>
 		.replace(/\s{2,}/g, " ")
 		.trim();
 
-export const dynamic = 'force-dynamic';
-
 export default function AdminLoginPage() {
 	const router = useRouter();
 	const [username, setUsername] = useState("");
