@@ -69,21 +69,21 @@ const rawData = [
                 'Entertainment': 'MC Akad, Sound Sistem (Pagi-Sore), Video Liputan',
                 'Dokumentasi': 'Foto 2 roll'
             }},
-            { name: 'Paket Entertainment 17 Juta', price: '17.000.000', benefits: {
-                'Makeup & Busana': 'Pengantin: Akad & Resepsi, Keluarga: 2 Ibu, 2 Bapak, 4 Pagar Ayu',
-                'Dekorasi & Perlengkapan': 'Pelaminan 5m, 2 Set Tenda Serut, 2 Set Tirai + Karpet, 1 Blower Air, 100 Kursi, Prasmanan Roll Top',
-                'Entertainment': 'MC Akad-Resepsi, 2 Penari, 2 WO Person, Sound Sistem',
-                'Dokumentasi': 'Foto 2 roll, Video (2 keping)'
-            }},
             { name: 'Paket Luxury 18 Juta', price: '18.000.000', benefits: {
                 'Makeup & Busana': 'Pengantin: Akad & 1-2 Resepsi, Keluarga: 2 Ibu, 2 Bapak, 4 Pagar Ayu/Keluarga',
                 'Dekorasi & Perlengkapan': 'Pelaminan Kaca 6m Bunga Imitasi, Dekor Lorong 5m, Photo Booth, 3 Set Tenda Serut + Tenda Lorong, 3.5 Set Karpet & Tirai (Semi Indoor), 1 Blower',
                 'Dokumentasi': 'Foto 2 roll, Cetak Album (72 lembar), File CD, File via WA'
             }},
+            { name: 'Paket Entertainment 18.1 Juta', price: '18.100.000', benefits: {
+                'Makeup & Busana': 'Pengantin: Akad & Resepsi, Melati, Softlens, Henna, Keluarga: 2 Ibu, 2 Bapak, 4 Pagar Ayu',
+                'Dekorasi & Perlengkapan': 'Pelaminan 5m, 2 Set Tenda Serut, 2 Set Tirai + Karpet, 1 Blower Air, 100 Kursi, Prasmanan Roll Top',
+                'Entertainment': 'MC Akad-Resepsi, 2 Penari, 2 WO Person, Sound Sistem',
+                'Dokumentasi': 'Foto 2 roll, Video (2 keping)'
+            }},
             { name: 'Paket Wedding 19.5', price: '19.500.000', benefits: {
                 'Makeup & Busana': 'Pengantin: Akad & Resepsi, Keluarga: 2 Ibu, 2 Bapak, 4 Pagar Ayu, 2 Keluarga',
                 'Dekorasi & Perlengkapan': 'Pelaminan 6m Bunga Segar, Photo Booth 3m, Tenda Toserba Sisir Modif Jumbo 1 Set, Tenda Serut 2 Set, 3 Set Karpet/Tirai (Semi Indoor), 1 Blower, 100 Kursi',
-                'Dokumentasi': 'Foto 2 roll, Cetak Album, File CD'
+                'Dokumentasi': 'Foto 2 roll, Cetak Album (72 lembar), File CD'
             }},
             { name: 'Paket Platinum 20 Juta', price: '20.000.000', benefits: {
                 'Makeup & Busana': 'Pengantin: Akad & 1-2 Resepsi, Keluarga: 2 Ibu, 2 Bapak, 4 Pagar Ayu/Keluarga',
@@ -270,21 +270,19 @@ console.log('Starting seed process...');
 // === CLEANUP SECTION ===
 try {
     console.log('Cleaning up old data to prevent duplicates...');
-    // Order matters due to foreign keys
     db.exec("DELETE FROM produk_benefit;");
     db.exec("DELETE FROM produk;");
     db.exec("DELETE FROM benefit;");
-    // Reset auto-increment sequences so IDs start from 1 again
     db.exec("DELETE FROM sqlite_sequence WHERE name IN ('produk', 'benefit', 'produk_benefit');");
     console.log('Cleanup complete.');
 } catch (err) {
     console.error('Cleanup failed (proceeding anyway):', err.message);
 }
 
-// Transaction wrapper for atomicity
+// Transaction wrapper
 const insertAll = db.transaction((categories) => {
     
-    // Get Category Map to save lookups
+    // Get Category Map
     const catStmt = db.prepare('SELECT id, code_kategori, sub_kategori FROM kategori_produk');
     const benCatStmt = db.prepare('SELECT id, nama_kategori FROM kategori_benefit');
     
@@ -298,7 +296,7 @@ const insertAll = db.transaction((categories) => {
     const findBen = db.prepare('SELECT id FROM benefit WHERE benefit = ? AND kategori_benefit_id = ?');
 
     for (const group of categories) {
-        // 1. Find Product Category ID
+        // Find Product Category ID
         let catId = existingCats.find(c => 
             c.code_kategori === group.category.code && 
             c.sub_kategori === group.category.sub
@@ -315,12 +313,12 @@ const insertAll = db.transaction((categories) => {
         for (const item of group.items) {
             const priceVal = cleanPrice(item.price);
             
-            // 2. Insert Product
+            // Insert Product
             const prodInfo = insProduct.run(catId, item.name, priceVal);
             const prodId = prodInfo.lastInsertRowid;
             console.log(`Inserted Product: ${item.name}`);
 
-            // 3. Process Benefits
+            // Process Benefits
             if (item.benefits) {
                 for (const [benCatName, benText] of Object.entries(item.benefits)) {
                     
@@ -341,11 +339,11 @@ const insertAll = db.transaction((categories) => {
                         }
                     }
 
-                    // Parse individual benefit items
+                    // Parse benefit items
                     const items = parseBenefits(benText);
                     
                     for (const bText of items) {
-                        // Check if benefit exists (to avoid creating duplicate benefit text entries)
+                        // Check if benefit exists
                         let benId = findBen.get(bText, benCatId)?.id;
                         
                         if (!benId) {
